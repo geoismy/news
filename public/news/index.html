@@ -300,9 +300,13 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
   .vis-seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper);align-self:flex-start}
   .vis-toggle{display:block;margin-left:auto;appearance:none;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:5px 4px;cursor:pointer}
   /* 아래로 읽으면 접히고, 위로 올리면 펼쳐짐 */
-  .home-vis .vcard{transition:max-height .3s ease, opacity .25s ease;max-height:70vh}
+  /* 실제 높이(--vh)만큼만 줄였다 늘려서 처음부터 끝까지 고르게 움직이게 */
+  .home-vis{transition:padding .45s cubic-bezier(.4,0,.2,1), gap .45s cubic-bezier(.4,0,.2,1)}
+  .home-vis .vcard{max-height:var(--vh,70vh);transform-origin:top center;
+    transition:max-height .5s cubic-bezier(.4,0,.2,1), opacity .35s ease, transform .5s cubic-bezier(.4,0,.2,1)}
   .home-vis.mini{padding-bottom:8px;gap:0}
-  .home-vis.mini .vcard.on{max-height:0;opacity:0;pointer-events:none}
+  .home-vis.mini .vcard.on{max-height:0;opacity:0;transform:translateY(-10px) scale(.98);pointer-events:none;
+    transition:max-height .5s cubic-bezier(.4,0,.2,1), opacity .25s ease, transform .5s cubic-bezier(.4,0,.2,1)}
   .vis-seg button{appearance:none;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:5px 14px;cursor:pointer}
   .vis-seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
   .vcard{display:none} .vcard.on{display:block}
@@ -815,9 +819,14 @@ $("#backToDay").onclick = backToDay;
 /* 좁은 화면: 그래프 / 지도 바꿔 보기 */
 /* 좁은 화면: 아래로 읽으면 그래프·지도를 접고, 위로 올리면 펼침 */
 const VIS = {mini:false, lastY:0, lockUntil:0};
+function measureVis(){
+  const c = document.querySelector(".home-vis .vcard.on"); if (!c || VIS.mini) return;
+  c.style.setProperty("--vh", c.scrollHeight + "px");
+}
 function setVisMini(m){
   if (VIS.mini === m) return;
-  VIS.mini = m; VIS.lockUntil = performance.now() + 450; // 접히며 화면이 밀리는 동안은 무시
+  if (m) measureVis();
+  VIS.mini = m; VIS.lockUntil = performance.now() + 600; // 접히며 화면이 밀리는 동안은 무시
   $(".home-vis").classList.toggle("mini", m);
   $("#visToggle").textContent = m ? "펼치기 ▾" : "접기 ▴";
   $("#visToggle").setAttribute("aria-expanded", String(!m));
@@ -835,6 +844,7 @@ addEventListener("scroll", ()=>{
   if (Math.abs(dy) > 12) VIS.lastY = y;
 }, {passive:true});
 $("#visToggle").onclick = ()=>setVisMini(!VIS.mini);
+addEventListener("resize", measureVis);
 
 $("#visSeg").addEventListener("click", e=>{
   setVisMini(false);
