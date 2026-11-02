@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>오늘도 지리는 소식</title>
 <meta name="description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
+<link rel="icon" href="/news/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://geois.my/news/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="geois.my">
+<meta property="og:url" content="https://geois.my/news/">
+<meta property="og:title" content="오늘도 지리는 소식">
+<meta property="og:description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
+<meta property="og:image" content="https://geois.my/news/og-news.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="오늘도 지리는 소식 · geois.my/news">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#07080f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
 <script src="/news/lib/papaparse-5.4.1.min.js"></script>
@@ -72,6 +85,7 @@ main{padding:22px 0 60px}
 /* date bar */
 .datebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
 .datebar h2{font-size:20px;margin:0}
+.datebar h2 .count{color:var(--muted);font-size:15px;font-weight:500;margin-left:4px}
 .datebar .nav{display:flex;gap:6px}
 .btn{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;cursor:pointer}
 .btn:disabled{opacity:.35;cursor:default}
@@ -94,6 +108,7 @@ main{padding:22px 0 60px}
 .copy.done{color:var(--accent);border-color:var(--accent)}
 .go{display:inline-block;text-decoration:none;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;padding:6px 14px;border-radius:999px}
 .go:hover{filter:brightness(1.08)}
+.when{display:inline-block;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:2px 9px;border-radius:999px;margin-right:6px}
 
 /* graph tab */
 .graphbox{position:relative;background:var(--graph-bg);border-radius:var(--radius);overflow:hidden;height:min(68vh,560px)}
@@ -126,7 +141,12 @@ main{padding:22px 0 60px}
 .row .go{flex:none;font-size:12px;padding:4px 10px;margin-top:2px}
 .empty{color:var(--muted);text-align:center;padding:40px 0}
 .notice{font-size:13px;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin-bottom:14px}
-footer{color:var(--muted);font-size:13px;text-align:center;padding:20px 0 40px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:28px 0 44px;border-top:1px solid var(--line);line-height:1.9}
+footer .ft-title{color:var(--ink);font-weight:700;font-size:14px}
+footer a{color:var(--muted);text-underline-offset:3px}
+footer a:hover{color:var(--ink)}
+footer .ft-links{display:flex;gap:6px 14px;justify-content:center;flex-wrap:wrap;margin:6px 0}
+footer .ft-note{font-size:12px;opacity:.85}
 </style>
 </head>
 <body>
@@ -188,7 +208,15 @@ footer{color:var(--muted);font-size:13px;text-align:center;padding:20px 0 40px}
   </section>
 </main>
 
-<footer>🌏 오늘도 지리는 소식</footer>
+<footer><div class="wrap">
+  <div class="ft-title">🌏 오늘도 지리는 소식</div>
+  <div class="ft-links">
+    <a id="ftKakao" href="#" target="_blank" rel="noopener">💬 카톡방</a>
+    <a href="mailto:geoismyfault@gmail.com">✉️ geoismyfault@gmail.com</a>
+    <a href="/way">🪧 geois.my/way 긴 주소 줄이기</a>
+  </div>
+  <div class="ft-note">기사의 저작권은 각 매체에 있어요. 이곳은 제목·짧은 요약과 원문 링크를 모아 둡니다.</div>
+</div></footer>
 
 <script>
 /* ▼ 발행본4 CSV 공개 주소 (파일 → 공유 → 웹에 게시) */
@@ -205,6 +233,20 @@ const splitTags = s => String(s||"").split(/[,，]/).map(t=>t.replace(/^#/,"").t
 function normDate(v){
   const m = String(v||"").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
   return m ? `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}` : "";
+}
+/* 한국 시간 기준 오늘 날짜 "YYYY-MM-DD" (보는 사람 컴퓨터 시간대와 상관없이) */
+function kstToday(offsetDays=0){
+  const t = new Date(Date.now() + 9*3600e3 - offsetDays*86400e3);
+  return t.toISOString().slice(0,10);
+}
+function md(d){ const [,m,dd]=d.split("-").map(Number); return `${m}월 ${dd}일`; }
+/* 카드 꼬리표: 오늘 / 어제 / 10월 28일 */
+function dayLabel(d){ return d===kstToday() ? "오늘" : d===kstToday(1) ? "어제" : md(d); }
+/* 날짜 제목: 11월 2일 오늘의 소식 / 11월 1일 어제의 소식 / 10월 28일 (화) 소식 */
+function dayTitle(d){
+  if (d===kstToday()) return `${md(d)} 오늘의 소식`;
+  if (d===kstToday(1)) return `${md(d)} 어제의 소식`;
+  return `${fmtDate(d)} 소식`;
 }
 function fmtDate(d){ const [y,m,dd]=d.split("-").map(Number); const w="일월화수목금토"[new Date(y,m-1,dd).getDay()]; return `${m}월 ${dd}일 (${w})`; }
 
@@ -247,9 +289,9 @@ function tagBtns(d){
   return d.regions.map(t=>`<button class="tag r" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")
        + d.topics.map(t=>`<button class="tag t" data-tag="${esc(t)}">#${esc(t)}</button>`).join("");
 }
-function card(d, prefix=""){
+function card(d, showDate=false){
   return `<article class="card">
-    <div class="cat">${prefix}${EMOJI[d.cat]||"❓"} ${esc(d.cat)}</div>
+    <div class="cat">${showDate?`<span class="when">${dayLabel(d.date)}</span>`:""}${EMOJI[d.cat]||"❓"} ${esc(d.cat)}</div>
     <h3><a href="${esc(d.link)}" target="_blank" rel="noopener">${esc(d.title)}</a></h3>
     <p>${esc(d.summary)}</p>
     <div class="tags">${tagBtns(d)}</div>
@@ -263,7 +305,7 @@ function renderToday(){
   if (!DATES.length){ $("#todayTitle").textContent="아직 소식이 없어요"; return; }
   const date = DATES[dayIdx];
   const items = DATA.filter(d=>d.date===date);
-  $("#todayTitle").textContent = `${fmtDate(date)} · ${items.length}건`;
+  $("#todayTitle").innerHTML = `${dayTitle(date)} <span class="count">${items.length}건</span>`;
   $("#todayList").innerHTML = items.map(d=>card(d)).join("");
   $("#prevDay").disabled = dayIdx >= DATES.length-1;
   $("#nextDay").disabled = dayIdx <= 0;
@@ -421,7 +463,7 @@ function openTag(tag, scroll=true){
     <div class="panel-head"><h2>#${esc(tag)} <span class="count">${list.length}건</span></h2>
       <button class="btn" id="closeTag">닫기</button></div>
     ${rel.length?`<div class="related">함께 나온 태그 ${rel.map(([t])=>`<button class="tag ${DATA.some(d=>d.regions.includes(t))?"r":"t"}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`:""}
-    ${list.map(d=>card(d, fmtDate(d.date)+" · ")).join("")}`;
+    ${list.map(d=>card(d, true)).join("")}`;
   $("#closeTag").onclick=()=>{ $("#tagPanel").innerHTML=""; history.replaceState(null,"",location.pathname); graph && graph._setHi(null); };
   history.replaceState(null,"","#tag="+encodeURIComponent(tag));
   if (graph){
@@ -447,7 +489,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showView(b
 document.addEventListener("click", async e=>{
   const t=e.target.closest(".tag"); if(t){ openTag(t.dataset.tag); return; }
 });
-if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
+if (KAKAO_URL){ $("#kakao").href = KAKAO_URL; $("#ftKakao").href = KAKAO_URL; } else $("#ftKakao").remove();
 
 load();
 </script>
