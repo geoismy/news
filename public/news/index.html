@@ -288,6 +288,7 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
 #cardMap .krrow .inset svg{width:100%;height:auto}
 #cardMap .inset .zoomctl{top:4px;right:4px}
 .vis-seg{display:none}
+.vis-toggle{display:none}
 .back{appearance:none;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:700;padding:4px 0 10px;cursor:pointer}
 #tagView .panel{margin-top:0}
 @media (min-width:1024px){ #tagView .panel-head{position:sticky;top:50px;z-index:2;background:var(--bg);padding:8px 0;margin:-8px 0 2px} }
@@ -295,7 +296,13 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
   .home.on{grid-template-columns:1fr;gap:0}
   .home-vis{order:-1;top:47px;z-index:5;background:var(--bg);padding:8px 0 10px;margin-top:-8px;box-shadow:0 8px 10px -10px rgba(0,0,0,.25)}
   .home-list{padding-top:10px}
+  .vis-bar{display:flex;align-items:center;gap:8px}
   .vis-seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper);align-self:flex-start}
+  .vis-toggle{display:block;margin-left:auto;appearance:none;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:5px 4px;cursor:pointer}
+  /* 아래로 읽으면 접히고, 위로 올리면 펼쳐짐 */
+  .home-vis .vcard{transition:max-height .3s ease, opacity .25s ease;max-height:70vh}
+  .home-vis.mini{padding-bottom:8px;gap:0}
+  .home-vis.mini .vcard.on{max-height:0;opacity:0;pointer-events:none}
   .vis-seg button{appearance:none;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:5px 14px;cursor:pointer}
   .vis-seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
   .vcard{display:none} .vcard.on{display:block}
@@ -406,7 +413,8 @@ footer .ft-note{font-size:12px;opacity:.85}
     </div>
 
     <aside class="home-vis">
-      <div class="vis-seg" id="visSeg"><button class="on" data-c="graph">그래프 뷰</button><button data-c="map">뉴스 지도</button></div>
+      <div class="vis-bar"><div class="vis-seg" id="visSeg"><button class="on" data-c="graph">그래프 뷰</button><button data-c="map">뉴스 지도</button></div>
+        <button class="vis-toggle" id="visToggle" type="button" aria-expanded="true">접기 ▴</button></div>
       <div class="vcard on" id="cardGraph">
         <div class="vhead"><b>그래프 뷰</b>
           <div class="filters" id="graphFilters">
@@ -785,6 +793,7 @@ function openTag(tag, scroll=true){
   MAP.sel = tag;
   if (GEO[tag]) setMapMode(inKorea(GEO[tag]) ? "korea" : "world");
   markMapSel();
+  if (typeof setVisMini==="function") setVisMini(false);
   if (scroll) setTimeout(scrollToHome, 100);
 }
 const openPlace = openTag;
@@ -804,7 +813,31 @@ function scrollToHome(){
 }
 $("#backToDay").onclick = backToDay;
 /* 좁은 화면: 그래프 / 지도 바꿔 보기 */
+/* 좁은 화면: 아래로 읽으면 그래프·지도를 접고, 위로 올리면 펼침 */
+const VIS = {mini:false, lastY:0, lockUntil:0};
+function setVisMini(m){
+  if (VIS.mini === m) return;
+  VIS.mini = m; VIS.lockUntil = performance.now() + 450; // 접히며 화면이 밀리는 동안은 무시
+  $(".home-vis").classList.toggle("mini", m);
+  $("#visToggle").textContent = m ? "펼치기 ▾" : "접기 ▴";
+  $("#visToggle").setAttribute("aria-expanded", String(!m));
+  if (!m) setTimeout(()=>{ placeLabels(); if (graph){ const el=$("#graph"); graph.width(el.clientWidth).height(el.clientHeight); } }, 320);
+}
+addEventListener("scroll", ()=>{
+  const y = scrollY;
+  if (innerWidth >= 1024 || currentView()!=="today"){ VIS.lastY = y; return; }
+  if (performance.now() < VIS.lockUntil){ VIS.lastY = y; return; }
+  const dy = y - VIS.lastY;
+  const listTop = $(".home-list").getBoundingClientRect().top + y - $("nav.tabs").offsetHeight;
+  if (y < listTop - 40) setVisMini(false);              // 목록 위쪽이면 늘 펼침
+  else if (dy > 12) setVisMini(true);                   // 아래로 읽는 중
+  else if (dy < -24) setVisMini(false);                 // 위로 올림
+  if (Math.abs(dy) > 12) VIS.lastY = y;
+}, {passive:true});
+$("#visToggle").onclick = ()=>setVisMini(!VIS.mini);
+
 $("#visSeg").addEventListener("click", e=>{
+  setVisMini(false);
   const b = e.target.closest("button"); if (!b) return;
   document.querySelectorAll("#visSeg button").forEach(x=>x.classList.toggle("on", x===b));
   $("#cardGraph").classList.toggle("on", b.dataset.c==="graph");
