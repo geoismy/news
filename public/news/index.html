@@ -7,8 +7,8 @@
 <meta name="description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://unpkg.com/force-graph@1.43.5/dist/force-graph.min.js"></script>
+<script src="/news/lib/papaparse-5.4.1.min.js"></script>
+<script src="/news/lib/force-graph-1.43.5.min.js"></script>
 <style>
 :root{
   --bg:#f4f4f6; --paper:#ffffff; --ink:#16161d; --muted:#6a6a78; --line:#e2e2ea;
@@ -191,28 +191,12 @@ footer{color:var(--muted);font-size:13px;text-align:center;padding:20px 0 40px}
 <footer>🌏 오늘도 지리는 소식</footer>
 
 <script>
-/* ▼ 발행본4 CSV 공개 주소를 여기에 넣으면 실제 데이터로 바뀝니다 */
+/* ▼ 발행본4 CSV 공개 주소 (파일 → 공유 → 웹에 게시) */
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6U4saJYXK6x-nMabUrrwouaPBSFBZUSwIjEaApMlS70C63wzH7gkRd3a50zPjA9YGzUo96Ak71MYN/pub?gid=1528413879&single=true&output=csv";
 /* ▼ 카카오톡 오픈채팅방 주소 */
 const KAKAO_URL = "https://open.kakao.com/o/gLQT2WTi";
 
 const EMOJI = {"지형":"🏔️","기후":"🌦️","자연재해":"🌋","도시·촌락":"🏘️","교통":"✈️","인구":"👥","경제":"💰","문화":"🏛️","생물":"🌿","정치·지정학":"🌐","자원·에너지":"⚡","AI·지리정보기술":"🗺️","여행":"🧳","보건·질병":"🩺","교육":"🧭","와우":"😆"};
-
-/* 샘플 데이터 (CSV_URL이 비어 있을 때만 사용) */
-const SAMPLE = [
- {날짜:"2026-10-28",분야:"인구",제목:"영암군, 주민 5명 중 1명이 이주배경",요약:"전남 영암군에서 외국인 주민과 귀화자 등 이주배경 주민이 전체의 20%를 넘었습니다. 조선업 일자리를 따라 모인 사람들이 지역의 인구 구조를 빠르게 바꾸고 있습니다.",지역태그:"영암, 전남",주제태그:"이주배경, 다문화",링크:"https://example.com/1",매체:"경향신문"},
- {날짜:"2026-10-28",분야:"여행",제목:"서울 서초구 '고터' 일대, 걷기 여행 코스로",요약:"서초구가 고속터미널 일대를 잇는 도보 여행 코스를 만들었습니다. 교통 거점이던 곳이 머무는 공간으로 바뀌는 사례입니다.",지역태그:"서울",주제태그:"관광, 도보여행",링크:"https://example.com/2",매체:"한겨레"},
- {날짜:"2026-10-28",분야:"교통",제목:"태안군 국도 32호선 확장 착공",요약:"충남 태안을 잇는 국도 32호선 확장 공사가 시작됐습니다. 반도 지형 탓에 우회로가 없던 지역의 교통 여건이 나아질 전망입니다.",지역태그:"태안, 충남",주제태그:"도로",링크:"https://example.com/3",매체:"오마이뉴스"},
- {날짜:"2026-10-28",분야:"정치·지정학",제목:"러시아 점령 우크라이나 지역의 변화",요약:"러시아가 점령한 우크라이나 동부에서 행정 체계와 교육이 러시아식으로 바뀌고 있습니다. 국경선이 실제 생활 속에서 어떻게 움직이는지 보여줍니다.",지역태그:"우크라이나, 러시아",주제태그:"분쟁지역, 국경",링크:"https://example.com/4",매체:"BBC코리아"},
- {날짜:"2026-10-28",분야:"정치·지정학",제목:"트럼프, 베네수엘라 원유 제재 강화",요약:"미국이 베네수엘라 원유 수출 제재를 다시 강화했습니다. 세계 최대 매장량을 가진 나라의 석유가 외교 수단이 되고 있습니다.",지역태그:"베네수엘라, 미국",주제태그:"국제관계, 석유",링크:"https://example.com/5",매체:"민들레"},
- {날짜:"2026-10-28",분야:"교통",제목:"호주, 전기자전거 화재 대책",요약:"호주에서 전기자전거 배터리 화재가 잇따르자 정부가 안전 기준을 마련했습니다. 도시 이동 수단이 바뀌며 생긴 새로운 위험입니다.",지역태그:"호주",주제태그:"전동모빌리티",링크:"https://example.com/6",매체:"The Conversation"},
- {날짜:"2026-10-28",분야:"지형",제목:"남극점 도착은 늦었지만, 스콧이 남긴 것",요약:"영국 해군 장교 로버트 스콧은 남극점 경쟁에서 졌지만 그의 탐험대가 모은 암석과 기상 기록은 지금도 연구에 쓰입니다. 극지 탐험이 곧 지리 조사였던 시절의 이야기입니다.",지역태그:"남극",주제태그:"극지탐험",링크:"https://example.com/7",매체:"The Conversation"},
- {날짜:"2026-10-28",분야:"와우",제목:"영국 타임아웃 선정 세계에서 가장 멋진 동네",요약:"여행 매체 타임아웃이 올해 세계에서 가장 멋진 동네를 발표했습니다. 오래된 공장 지대가 문화 공간으로 바뀐 곳들이 상위권을 차지했습니다.",지역태그:"세계, 영국",주제태그:"도시재생",링크:"https://example.com/8",매체:"aagag.com"},
- {날짜:"2026-10-27",분야:"자연재해",제목:"아이슬란드 화산, 유럽 하늘길 또 막았다",요약:"레이캬네스반도에서 2년 새 열 번째 분화가 일어났습니다. 판 경계 위에 있는 나라라 분화는 앞으로도 반복될 전망입니다.",지역태그:"아이슬란드, 유럽",주제태그:"화산, 항공",링크:"https://example.com/9",매체:"BBC코리아"},
- {날짜:"2026-10-27",분야:"기후",제목:"남극 빙하 아래 거대한 호수 발견",요약:"남극 빙하 아래에서 서울 면적만 한 호수가 확인됐습니다. 얼음 밑 물길이 빙하가 바다로 미끄러지는 속도를 바꿀 수 있습니다.",지역태그:"남극",주제태그:"빙하, 해수면",링크:"https://example.com/10",매체:"한겨레"},
- {날짜:"2026-10-27",분야:"경제",제목:"우량 농지에 들어서는 태양광",요약:"나랏돈을 들여 정리한 농지에 태양광 패널이 늘고 있습니다. 필자는 한번 바뀐 농토는 되돌리기 어렵다며 우려합니다.",지역태그:"한국",주제태그:"농지전용, 태양광",링크:"https://example.com/11",매체:"오마이뉴스"},
- {날짜:"2026-10-27",분야:"인구",제목:"지방 소멸 지도, 10년 새 두 배",요약:"소멸 위험 지역으로 분류된 시군이 10년 사이 두 배로 늘었습니다. 수도권과 거리가 멀수록 위험도가 높았습니다.",지역태그:"한국",주제태그:"지방소멸, 이주배경",링크:"https://example.com/12",매체:"경향신문"}
-];
 
 /* ---------- 유틸 ---------- */
 const $ = s => document.querySelector(s);
@@ -229,16 +213,13 @@ let graph = null, heroGraph = null, heroPaused = false;
 
 /* ---------- 데이터 ---------- */
 async function load(){
-  let rows = SAMPLE, isSample = true;
-  if (CSV_URL){
-    try{
-      const res = await fetch(CSV_URL, {cache:"no-store"});
-      const text = await res.text();
-      rows = Papa.parse(text, {header:true, skipEmptyLines:true}).data;
-      isSample = false;
-      if (!rows.some(r => r && normDate(r.날짜))) { rows = SAMPLE; isSample = true; }
-    }catch(e){ console.warn(e); rows = SAMPLE; isSample = true; }
-  }
+  let rows = [], failed = false;
+  try{
+    const res = await fetch(CSV_URL, {cache:"no-store"});
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    rows = Papa.parse(await res.text(), {header:true, skipEmptyLines:true}).data;
+    if (!rows.some(r => r && normDate(r.날짜))) throw new Error("no rows");
+  }catch(e){ console.warn(e); rows = []; failed = true; }
   DATA = rows
     .filter(r => r && normDate(r.날짜) && (r.제목 || r.요약))
     .map((r,i) => ({
@@ -248,7 +229,14 @@ async function load(){
       link:String(r.링크||"").trim(), source:String(r.매체||"").trim()
     }));
   DATES = [...new Set(DATA.map(d=>d.date))].sort().reverse();
-  if (isSample) $("#notice").innerHTML = `<div class="notice">지금은 샘플 데이터예요. CSV 주소를 연결하면 실제 발행 기사로 바뀝니다.</div>`;
+  if (failed){
+    $("#notice").innerHTML = `<div class="notice">지금 소식을 불러오지 못했어요. 잠시 후 새로고침해 주세요.</div>`;
+    $("#heroStats").textContent = "소식을 불러오지 못했어요";
+    $("#todayTitle").textContent = "잠시 후 다시 열어 주세요";
+    $("#prevDay").disabled = $("#nextDay").disabled = true;
+    $("#archiveList").innerHTML = `<div class="empty">소식을 불러오지 못했어요</div>`;
+    return;
+  }
   renderToday(); renderCats(); renderArchive(); renderHero(); buildGraph();
   const h = decodeURIComponent(location.hash.slice(1));
   if (h.startsWith("tag=")) openTag(h.slice(4), false);
