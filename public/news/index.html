@@ -863,7 +863,9 @@ const KOREA_BOX = {lat0:33, lat1:43, lng0:124, lng1:131.5};
 const inKorea = ([lat,lng]) => lat>=KOREA_BOX.lat0 && lat<=KOREA_BOX.lat1 && lng>=KOREA_BOX.lng0 && lng<=KOREA_BOX.lng1;
 /* Natural Earth 투영 (d3-geo와 같은 식, 도트 생성 때 쓴 값으로 맞춤) */
 function projW([lat,lng]){
-  const W = MAP.dm.world, l = lng*Math.PI/180, p = lat*Math.PI/180, p2 = p*p, p4 = p2*p2;
+  const W = MAP.dm.world;
+  const lng2 = W.lon0 ? ((lng - W.lon0 + 540) % 360) - 180 : lng; // 가운데 경도(동경 150°) 기준으로 돌림
+  const l = lng2*Math.PI/180, p = lat*Math.PI/180, p2 = p*p, p4 = p2*p2;
   const X = l*(0.8707-0.131979*p2+p4*(-0.013791+p4*(0.003971*p2-0.001529*p4)));
   const Y = p*(1.007226+p2*(0.015085+p4*(-0.044475+0.028874*p2-0.005916*p4)));
   return [W.tx + W.s*X, W.ty - W.s*Y];
@@ -946,10 +948,15 @@ function drawMapData(){
   const posW = n => n==="@한반도" ? krCenter : projW(GEO[n]);
   /* 선 */
   for (const [k,w] of pairs){
-    const [a,b] = k.split("|"), [x1,y1] = posW(a), [x2,y2] = posW(b);
-    const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy); if (dist < 8) continue;
-    const mx = (x1+x2)/2, my = Math.min(y1,y2) - dist*0.18; // 위로 휘는 곡선
-    const p = el("path", {class:"arc", d:`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`}, wa);
+    const [a,b] = k.split("|"), [x1,y1] = posW(a);
+    let [x2,y2] = posW(b);
+    /* 지도 가장자리 너머가 더 가까우면(유럽-아메리카) 대서양 쪽으로 넘어가게: 양쪽 끝에서 한 번씩 그림 */
+    const Wd = MAP.dm.world.W, wrap = Math.abs(x2-x1) > Wd/2;
+    const curve = (ax,ay,bx,by) => { const dist = Math.hypot(bx-ax, by-ay); return `M${ax} ${ay}Q${(ax+bx)/2} ${Math.min(ay,by) - dist*0.18} ${bx} ${by}`; };
+    const shift = x2 > x1 ? -Wd : Wd;
+    const dist = wrap ? Math.hypot(x2+shift-x1, y2-y1) : Math.hypot(x2-x1, y2-y1); if (dist < 8) continue;
+    const d = wrap ? curve(x1,y1,x2+shift,y2) + curve(x1-shift,y1,x2,y2) : curve(x1,y1,x2,y2);
+    const p = el("path", {class:"arc", d}, wa);
     p.dataset.a = a; p.dataset.b = b; p.style.strokeWidth = (0.9 + Math.min(w,4)*0.35);
   }
   /* 버블: 큰 것부터 그려서 작은 게 위에 오게 */
