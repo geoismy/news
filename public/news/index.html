@@ -22,6 +22,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
 <script src="/news/lib/papaparse-5.4.1.min.js"></script>
 <script src="/news/lib/force-graph-1.43.5.min.js"></script>
+<script src="/news/geo.js"></script>
 <style>
 :root{
   --bg:#f4f4f6; --paper:#ffffff; --ink:#16161d; --muted:#6a6a78; --line:#e2e2ea;
@@ -72,9 +73,15 @@ nav.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
 nav.tabs .kakao{margin-left:auto;align-self:center;flex:none;text-decoration:none;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;background:#fee500;color:#3a1d1d;white-space:nowrap}
 nav.tabs .kakao:hover{filter:brightness(.96)}
 nav.tabs .kakao .short{display:none}
+@media (max-width:420px){
+  nav.tabs .kakao .short{display:none !important}
+  nav.tabs .wrap{padding:0 8px;gap:0}
+  nav.tabs button{padding:13px 7px !important;font-size:14px !important}
+}
 @media (max-width:560px){
   nav.tabs .kakao{font-size:12px;padding:5px 10px}
   nav.tabs .kakao .long{display:none} nav.tabs .kakao .short{display:inline}
+  nav.tabs button{padding:13px 8px}
   nav.tabs button{padding:13px 10px;font-size:15px}
   .datebar h2{font-size:17px}
   .card{padding:16px 15px 12px}
@@ -120,6 +127,44 @@ main{padding:22px 0 60px}
 .chip{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--muted);font:inherit;font-size:13px;padding:4px 11px;border-radius:999px;cursor:pointer}
 .chip.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 
+/* 뉴스 지도 */
+.mapwrap{display:grid;grid-template-columns:1fr 170px;gap:10px;background:var(--graph-bg);border-radius:var(--radius);padding:14px 12px 12px;position:relative}
+.mapcell{position:relative}
+.mapcell svg{display:block;width:100%;height:auto;overflow:visible}
+.land{fill:none;stroke:#6f6ba8;stroke-opacity:.55;stroke-linecap:round}
+.kland{fill:none;stroke:#4e4b7a;stroke-opacity:.6;stroke-linecap:round}
+.kland.kr{stroke:#8f8ad0;stroke-opacity:.75}
+.arc{fill:none;stroke:url(#arcGrad);stroke-width:1.1;stroke-opacity:.7;stroke-dasharray:4 6;animation:dash 6s linear infinite}
+.arc.on{stroke-opacity:1;stroke-width:1.8}
+.arcs.dim .arc:not(.on){stroke-opacity:.08}
+@keyframes dash{to{stroke-dashoffset:-100}}
+.bub{fill:#ffd166;fill-opacity:.55;stroke:#ffd166;stroke-opacity:.9;stroke-width:1;cursor:pointer;transition:fill-opacity .2s}
+.bub.recent{fill-opacity:.85}
+.bub:hover,.bub.on{fill-opacity:1;stroke:#fff;stroke-width:1.6}
+.bub.kr{fill:#8ecae6;stroke:#8ecae6}
+.pulse{fill:none;stroke:#ffd166;stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pulse 2.2s ease-out infinite;pointer-events:none}
+@keyframes pulse{from{transform:scale(1);opacity:.9}to{transform:scale(3.2);opacity:0}}
+.krframe{fill:none;stroke:#8ecae6;stroke-opacity:.6;stroke-dasharray:3 3}
+.mlabels{position:absolute;inset:0;pointer-events:none}
+.mlabel{position:absolute;transform:translate(0,-50%);font-size:12px;font-weight:500;color:#e6e5f3;white-space:nowrap;text-shadow:0 0 4px #07080f,0 0 8px #07080f;pointer-events:auto;cursor:pointer}
+.mlabel.recent{color:#ffd166;font-weight:700}
+.mlabel.on{color:#fff;font-weight:700}
+.inset-title{font-size:12px;color:#a6a3c9;margin:0 0 4px 2px}
+.inset.flash{animation:flash 1.2s ease 2}
+@keyframes flash{50%{background:rgba(142,202,230,.12)}}
+.inset{border-radius:10px}
+.maptip{position:absolute;pointer-events:none;background:#161722;color:#ecebf5;border:1px solid #2f3048;border-radius:10px;padding:6px 10px;font-size:13px;white-space:nowrap;opacity:0;transition:opacity .15s;z-index:3}
+.maptip b{color:#ffd166}
+.mapnote{font-size:12px;color:#7c7a96;margin:8px 2px 0}
+.osm{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:5px 11px;white-space:nowrap}
+.osm:hover{color:var(--ink);border-color:var(--accent)}
+.panel-head .acts{display:flex;gap:6px;align-items:center}
+@media (max-width:640px){
+  .mapwrap{grid-template-columns:1fr;padding:10px 8px}
+  .inset{width:min(50%,190px);margin:6px auto 0}
+  .mlabel{font-size:11px}
+}
+
 /* tag panel */
 .panel{margin-top:18px}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
@@ -160,14 +205,15 @@ footer .ft-note{font-size:12px;opacity:.85}
     <div class="spot" id="heroSpot"></div>
     <div class="hero-actions">
       <button class="btn-hero" id="ctaToday">오늘의 소식 보기</button>
-      <button class="btn-hero ghost" id="ctaGraph">태그 지도 펼치기 →</button>
+      <button class="btn-hero ghost" id="ctaGraph">그래프 뷰 펼치기 →</button>
     </div>
   </div></div>
 </header>
 
 <nav class="tabs"><div class="wrap">
   <button data-view="today" class="on">오늘의 소식</button>
-  <button data-view="graph">태그 지도</button>
+  <button data-view="graph">그래프 뷰</button>
+  <button data-view="map">뉴스 지도</button>
   <button data-view="archive">아카이브</button>
   <a class="kakao" id="kakao" href="#" target="_blank" rel="noopener">💬 <span class="long">매일 아침 카톡방에서 만나요</span><span class="short">카톡방</span></a>
 </div></nav>
@@ -199,6 +245,25 @@ footer .ft-note{font-size:12px;opacity:.85}
       <span>점 크기 = 기사 수 · 선 굵기 = 함께 나온 횟수</span>
     </div>
     <div class="panel" id="tagPanel"></div>
+  </section>
+
+  <section class="view" id="v-map">
+    <div class="filters" id="mapFilters">
+      <button class="chip on" data-d="all">전체 기간</button>
+      <button class="chip" data-d="7">최근 7일</button>
+      <button class="chip" data-d="1" id="mapLatest">오늘</button>
+    </div>
+    <div class="mapwrap" id="mapWrap">
+      <div class="mapcell" id="worldCell"></div>
+      <div class="mapcell inset" id="koreaCell"><div class="inset-title">한반도 확대</div></div>
+      <div class="maptip" id="mapTip"></div>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:#ffd166"></i>지역 (원이 클수록 기사 많음)</span>
+      <span>퍼지는 고리 = 가장 최근 소식</span>
+      <span>선 = 한 기사에 함께 나온 지역</span>
+    </div>
+    <div class="panel" id="mapPanel"></div>
   </section>
 
   <section class="view" id="v-archive">
@@ -281,7 +346,9 @@ async function load(){
   }
   renderToday(); renderCats(); renderArchive(); renderHero(); buildGraph();
   const h = decodeURIComponent(location.hash.slice(1));
-  if (h.startsWith("tag=")) openTag(h.slice(4), false);
+  if (h.startsWith("tag=")) openTag(h.slice(4), false, "graph");
+  else if (h.startsWith("place=")) openPlace(h.slice(6), false);
+  else if (h==="map") showView("map");
 }
 
 /* ---------- 카드 ---------- */
@@ -438,7 +505,7 @@ function renderHero(){
 $("#ctaToday").onclick = ()=>{ showView("today"); scrollToMain(); };
 $("#ctaGraph").onclick = ()=>{ showView("graph"); scrollToMain(); };
 
-/* ---------- 태그 지도 탭 ---------- */
+/* ---------- 그래프 뷰 탭 ---------- */
 function buildGraph(){
   const el = $("#graph");
   if (!window.ForceGraph){ el.innerHTML='<div class="empty" style="color:#9aa">그래프를 불러오지 못했어요</div>'; return; }
@@ -452,18 +519,26 @@ $("#graphFilters").addEventListener("click", e=>{
 });
 
 /* ---------- 태그 모아보기 ---------- */
-function openTag(tag, scroll=true){
-  showView("graph");
+function tagList(tag){
   const list = DATA.filter(d=>d.regions.includes(tag)||d.topics.includes(tag)).sort((a,b)=>b.date.localeCompare(a.date));
   const co = {};
   list.forEach(d=>[...d.regions,...d.topics].forEach(t=>{ if(t!==tag) co[t]=(co[t]||0)+1; }));
-  const rel = Object.entries(co).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const isR = DATA.some(d=>d.regions.includes(tag));
-  $("#tagPanel").innerHTML = `
-    <div class="panel-head"><h2>#${esc(tag)} <span class="count">${list.length}건</span></h2>
-      <button class="btn" id="closeTag">닫기</button></div>
+  return {list, rel:Object.entries(co).sort((a,b)=>b[1]-a[1]).slice(0,8)};
+}
+function tagPanelHTML(tag, list, rel, closeId, extra=""){
+  return `<div class="panel-head"><h2>#${esc(tag)} <span class="count">${list.length}건</span></h2>
+      <div class="acts">${extra}<button class="btn" id="${closeId}">닫기</button></div></div>
     ${rel.length?`<div class="related">함께 나온 태그 ${rel.map(([t])=>`<button class="tag ${DATA.some(d=>d.regions.includes(t))?"r":"t"}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`:""}
     ${list.map(d=>card(d, true)).join("")}`;
+}
+/* 뉴스 지도에서 지역을 누르면 지도 아래에, 그 밖에는 그래프 뷰에 모아 보여 줌 */
+function openTag(tag, scroll=true, where){
+  if (!where) where = (currentView()==="map" && GEO[tag]) ? "map" : "graph";
+  if (where==="map") return openPlace(tag, scroll);
+  showView("graph");
+  const {list, rel} = tagList(tag);
+  const isR = DATA.some(d=>d.regions.includes(tag));
+  $("#tagPanel").innerHTML = tagPanelHTML(tag, list, rel, "closeTag");
   $("#closeTag").onclick=()=>{ $("#tagPanel").innerHTML=""; history.replaceState(null,"",location.pathname); graph && graph._setHi(null); };
   history.replaceState(null,"","#tag="+encodeURIComponent(tag));
   if (graph){
@@ -476,8 +551,213 @@ function openTag(tag, scroll=true){
   if (scroll) setTimeout(()=>$("#tagPanel").scrollIntoView({behavior:"smooth",block:"start"}), 200);
 }
 
+/* ---------- 뉴스 지도 (도트맵 + 버블) ---------- */
+const MAP = {dm:null, loading:null, days:"all", pending:null, sel:null};
+const SVGNS = "http://www.w3.org/2000/svg";
+const KOREA_BOX = {lat0:33, lat1:43, lng0:124, lng1:131.5};
+const inKorea = ([lat,lng]) => lat>=KOREA_BOX.lat0 && lat<=KOREA_BOX.lat1 && lng>=KOREA_BOX.lng0 && lng<=KOREA_BOX.lng1;
+/* Natural Earth 투영 (d3-geo와 같은 식, 도트 생성 때 쓴 값으로 맞춤) */
+function projW([lat,lng]){
+  const W = MAP.dm.world, l = lng*Math.PI/180, p = lat*Math.PI/180, p2 = p*p, p4 = p2*p2;
+  const X = l*(0.8707-0.131979*p2+p4*(-0.013791+p4*(0.003971*p2-0.001529*p4)));
+  const Y = p*(1.007226+p2*(0.015085+p4*(-0.044475+0.028874*p2-0.005916*p4)));
+  return [W.tx + W.s*X, W.ty - W.s*Y];
+}
+function projK([lat,lng]){ const K = MAP.dm.korea; return [(lng-K.lon0)*K.cos*K.k, (K.lat0-lat)*K.k]; }
+const dotPath = (d, n) => { let s=""; for (let i=0;i<d.length;i+=n) s += `M${d[i]} ${d[i+1]}h0`; return s; };
+const el = (tag, attrs={}, parent) => { const e=document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+function initMap(){
+  if (MAP.loading) return MAP.loading;
+  MAP.loading = fetch("/news/lib/dotmap.json").then(r=>r.json()).then(dm=>{
+    MAP.dm = dm; buildMap();
+    if (MAP.pending){ openPlace(MAP.pending, false); MAP.pending = null; }
+  }).catch(e=>{ console.warn(e); $("#worldCell").innerHTML = '<div class="empty" style="color:#9aa">지도를 불러오지 못했어요</div>'; });
+  return MAP.loading;
+}
+
+function buildMap(){
+  const {world:W, korea:K} = MAP.dm;
+  /* 세계 */
+  const ws = el("svg", {viewBox:`0 0 ${W.W} ${W.H}`, id:"worldSvg", role:"img", "aria-label":"뉴스 지도"});
+  const defs = el("defs", {}, ws);
+  const g = el("linearGradient", {id:"arcGrad", gradientUnits:"userSpaceOnUse", x1:0, y1:0, x2:W.W, y2:0}, defs);
+  el("stop", {offset:"0", "stop-color":"#8ecae6"}, g); el("stop", {offset:"1", "stop-color":"#ffd166"}, g);
+  el("path", {class:"land", d:dotPath(W.dots,2), "stroke-width":W.r*2}, ws);
+  const [fx0,fy0] = projW([KOREA_BOX.lat1, KOREA_BOX.lng0]), [fx1,fy1] = projW([KOREA_BOX.lat0, KOREA_BOX.lng1]);
+  el("rect", {class:"krframe", x:fx0-3, y:fy0-3, width:fx1-fx0+6, height:fy1-fy0+6, rx:4}, ws);
+  el("g", {class:"arcs", id:"worldArcs"}, ws); el("g", {id:"worldBubs"}, ws);
+  $("#worldCell").innerHTML = ""; $("#worldCell").appendChild(ws);
+  const wl = document.createElement("div"); wl.className = "mlabels"; wl.id = "worldLabels"; $("#worldCell").appendChild(wl);
+  /* 한반도 */
+  const ks = el("svg", {viewBox:`0 0 ${K.W} ${K.H}`, id:"koreaSvg", role:"img", "aria-label":"한반도 확대 지도"});
+  const other = [], kr = [];
+  for (let i=0;i<K.dots.length;i+=3) (K.dots[i+2] ? kr : other).push(K.dots[i], K.dots[i+1]);
+  el("path", {class:"kland", d:dotPath(other,2), "stroke-width":K.r*2}, ks);
+  el("path", {class:"kland kr", d:dotPath(kr,2), "stroke-width":K.r*2}, ks);
+  el("g", {id:"koreaBubs"}, ks);
+  $("#koreaCell").appendChild(ks);
+  const kl = document.createElement("div"); kl.className = "mlabels"; kl.id = "koreaLabels"; $("#koreaCell").appendChild(kl);
+
+  $("#mapLatest").textContent = DATES[0] ? dayLabel(DATES[0]) : "오늘";
+  drawMapData();
+  new ResizeObserver(()=>placeLabels()).observe($("#mapWrap"));
+}
+
+/* 기간에 맞는 지역별 기사 수, 함께 나온 쌍 */
+function mapData(){
+  const latest = DATES[0];
+  const from = MAP.days==="all" ? "" : MAP.days==="1" ? latest : kstToday(6);
+  const cnt = new Map(), recent = new Set(), pairs = new Map(), krArts = new Set();
+  for (const d of DATA){
+    if (from && d.date < from) continue;
+    const rs = [...new Set(d.regions)].filter(r=>GEO[r]);
+    rs.forEach(r=>{ cnt.set(r,(cnt.get(r)||0)+1); if (d.date===latest) recent.add(r); if (inKorea(GEO[r])) krArts.add(d.id); });
+    /* 세계 지도의 선: 한반도 안 지명은 "한반도" 하나로 묶어서 */
+    const ws = [...new Set(rs.map(r=>inKorea(GEO[r]) ? "@한반도" : r))];
+    for (let i=0;i<ws.length;i++) for (let j=i+1;j<ws.length;j++){
+      const k=[ws[i],ws[j]].sort().join("|"); pairs.set(k,(pairs.get(k)||0)+1);
+    }
+  }
+  const pts = [...cnt].map(([name,c])=>({name, c, recent:recent.has(name), kr:inKorea(GEO[name])}));
+  return {pts, pairs, krCount:krArts.size, krRecent:pts.some(p=>p.kr&&p.recent)};
+}
+
+function drawMapData(){
+  const {pts, pairs, krCount, krRecent} = mapData();
+  MAP.pts = pts;
+  const wb = $("#worldBubs"), wa = $("#worldArcs"), kb = $("#koreaBubs");
+  wb.innerHTML = ""; wa.innerHTML = ""; kb.innerHTML = "";
+  const rW = c => 3.5 + Math.sqrt(c)*4, rK = c => 4.5 + Math.sqrt(c)*4.2;
+  const krCenter = projW([37.8, 127.6]);
+  const posW = n => n==="@한반도" ? krCenter : projW(GEO[n]);
+  /* 선 */
+  for (const [k,w] of pairs){
+    const [a,b] = k.split("|"), [x1,y1] = posW(a), [x2,y2] = posW(b);
+    const dx = x2-x1, dy = y2-y1, dist = Math.hypot(dx,dy); if (dist < 8) continue;
+    const mx = (x1+x2)/2, my = Math.min(y1,y2) - dist*0.18; // 위로 휘는 곡선
+    const p = el("path", {class:"arc", d:`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`}, wa);
+    p.dataset.a = a; p.dataset.b = b; p.style.strokeWidth = (0.9 + Math.min(w,4)*0.35);
+  }
+  /* 버블: 큰 것부터 그려서 작은 게 위에 오게 */
+  const bub = (parent, x, y, r, p, cls) => {
+    if (p.recent) el("circle", {class:"pulse", cx:x, cy:y, r}, parent);
+    const c = el("circle", {class:`bub ${cls}${p.recent?" recent":""}`, cx:x, cy:y, r}, parent);
+    c.dataset.name = p.name; c.dataset.c = p.c;
+    return c;
+  };
+  const world = pts.filter(p=>!p.kr).sort((a,b)=>b.c-a.c);
+  world.forEach(p=>{ const [x,y] = projW(GEO[p.name]); bub(wb, x, y, rW(p.c), p, ""); });
+  if (krCount){ const [x,y] = krCenter; bub(wb, x, y, rW(krCount), {name:"@한반도", c:krCount, recent:krRecent}, "kr"); }
+  pts.filter(p=>p.kr).sort((a,b)=>b.c-a.c).forEach(p=>{ const [x,y] = projK(GEO[p.name]); bub(kb, x, y, rK(p.c), p, ""); });
+  $("#koreaCell").style.opacity = krCount ? 1 : .5;
+  bindBubbles();
+  placeLabels();
+  if (!pts.length) $("#mapPanel").innerHTML = `<div class="empty">이 기간에는 지도에 올릴 지역이 없어요</div>`;
+}
+
+/* 이름표: 큰 원부터, 겹치면 생략 (화면 크기에 맞춰 다시 계산) */
+function placeLabels(){
+  if (!MAP.pts) return;
+  const doCell = (cellId, svgId, layerId, list, proj, max) => {
+    const svg = $("#"+svgId), layer = $("#"+layerId); if (!svg) return;
+    layer.innerHTML = "";
+    const vb = svg.viewBox.baseVal, sc = svg.clientWidth / vb.width; if (!sc) return;
+    const sb = svg.getBoundingClientRect(), cb = layer.getBoundingClientRect();
+    const boxes = [];
+    for (const p of list){
+      if (boxes.length >= max) break;
+      const ox = sb.left - cb.left, oy = sb.top - cb.top; // 제목 줄 등으로 밀린 만큼
+      const [x,y] = proj(p), r = (p.r||0)*sc, px = ox + x*sc + r + 4, py = oy + y*sc;
+      const label = p.label || p.name, w = label.length*12 + 8, h = 16;
+      const box = [px, py-h/2, px+w, py+h/2];
+      if (box[2] > ox + svg.clientWidth + 4) { box[0] = ox + x*sc - r - 4 - w; box[2] = ox + x*sc - r - 4; }
+      if (boxes.some(b=>!(box[2]<b[0]||box[0]>b[2]||box[3]<b[1]||box[1]>b[3]))) continue;
+      boxes.push(box);
+      const d = document.createElement("div");
+      d.className = "mlabel" + (p.recent?" recent":"") + (MAP.sel===p.name?" on":"");
+      d.style.left = box[0]+"px"; d.style.top = py+"px"; d.textContent = label; d.dataset.name = p.name;
+      layer.appendChild(d);
+    }
+  };
+  const rW = c => 3.5 + Math.sqrt(c)*4, rK = c => 4.5 + Math.sqrt(c)*4.2;
+  const order = (a,b)=>(b.recent-a.recent)||(b.c-a.c);
+  const world = MAP.pts.filter(p=>!p.kr).map(p=>({...p, r:rW(p.c)}));
+  const kr = $("#worldBubs .bub.kr");
+  if (kr) world.push({name:"@한반도", label:"한반도", c:+kr.dataset.c, r:rW(+kr.dataset.c), recent:kr.classList.contains("recent"), at:[37.8,127.6]});
+  const wide = $("#worldCell").clientWidth > 520;
+  doCell("worldCell","worldSvg","worldLabels", world.sort(order), p=>projW(p.at||GEO[p.name]), wide?18:9);
+  doCell("koreaCell","koreaSvg","koreaLabels", MAP.pts.filter(p=>p.kr).map(p=>({...p, r:rK(p.c)})).sort(order), p=>projK(GEO[p.name]), 12);
+  $("#worldLabels").querySelectorAll(".mlabel").forEach(bindTarget);
+  $("#koreaLabels").querySelectorAll(".mlabel").forEach(bindTarget);
+}
+
+function bindTarget(t){
+  const name = t.dataset.name;
+  t.addEventListener("mouseenter", e=>hoverPlace(name, e));
+  t.addEventListener("mousemove", e=>moveTip(e));
+  t.addEventListener("mouseleave", ()=>hoverPlace(null));
+  t.addEventListener("click", ()=>{
+    if (name==="@한반도"){ const k=$("#koreaCell"); k.classList.remove("flash"); void k.offsetWidth; k.classList.add("flash");
+      if (innerWidth<=640) k.scrollIntoView({behavior:"smooth", block:"center"}); return; }
+    openPlace(name);
+  });
+}
+function bindBubbles(){ document.querySelectorAll("#v-map .bub").forEach(bindTarget); }
+
+function hoverPlace(name, e){
+  const tip = $("#mapTip"), arcs = $("#worldArcs");
+  if (!name){ tip.style.opacity = 0; arcs.classList.remove("dim"); arcs.querySelectorAll(".arc.on").forEach(a=>a.classList.remove("on")); return; }
+  const key = (name!=="@한반도" && GEO[name] && inKorea(GEO[name])) ? "@한반도" : name;
+  arcs.querySelectorAll(".arc").forEach(a=>a.classList.toggle("on", a.dataset.a===key || a.dataset.b===key));
+  arcs.classList.toggle("dim", !!arcs.querySelector(".arc.on"));
+  if (name==="@한반도"){
+    const n = $("#worldBubs .bub.kr").dataset.c;
+    tip.innerHTML = `<b>한반도</b> · 기사 ${n}건<br><span style="color:#9a99ad">오른쪽 확대 지도에서 지역별로 볼 수 있어요</span>`;
+  } else {
+    const {list, rel} = tagList(name);
+    const top = rel.slice(0,3).map(([t])=>"#"+esc(t)).join(" ");
+    tip.innerHTML = `<b>#${esc(name)}</b> · 기사 ${list.length}건${top?`<br><span style="color:#9a99ad">${top}</span>`:""}`;
+  }
+  tip.style.opacity = 1; moveTip(e);
+}
+function moveTip(e){
+  if (!e) return;
+  const tip = $("#mapTip"), box = $("#mapWrap").getBoundingClientRect();
+  let x = e.clientX - box.left + 14, y = e.clientY - box.top + 14;
+  if (x + tip.offsetWidth > box.width - 6) x = e.clientX - box.left - tip.offsetWidth - 14;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+
+/* 지역 하나 열기: 지도에서 강조하고 아래에 기사 모으기 */
+function openPlace(name, scroll=true){
+  showView("map");
+  if (!MAP.dm){ MAP.pending = name; return; }
+  MAP.sel = name;
+  document.querySelectorAll("#v-map .bub").forEach(b=>b.classList.toggle("on", b.dataset.name===name));
+  document.querySelectorAll("#v-map .mlabel").forEach(b=>b.classList.toggle("on", b.dataset.name===name));
+  const {list, rel} = tagList(name);
+  let osm = "";
+  if (GEO[name]){
+    const [lat,lng] = GEO[name], z = inKorea(GEO[name]) && !["한국","대한민국","남한","북한"].includes(name) ? 11 : 5;
+    osm = `<a class="osm" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${z}/${lat}/${lng}" target="_blank" rel="noopener">지도에서 보기 ↗</a>`;
+  }
+  $("#mapPanel").innerHTML = tagPanelHTML(name, list, rel, "closePlace", osm);
+  $("#closePlace").onclick = ()=>{ $("#mapPanel").innerHTML=""; MAP.sel=null; history.replaceState(null,"",location.pathname);
+    document.querySelectorAll("#v-map .on").forEach(b=>b.classList.remove("on")); };
+  history.replaceState(null,"","#place="+encodeURIComponent(name));
+  if (scroll) setTimeout(()=>$("#mapPanel").scrollIntoView({behavior:"smooth",block:"start"}), 150);
+}
+$("#mapFilters").addEventListener("click", e=>{
+  const b=e.target.closest(".chip"); if(!b || !MAP.dm) return;
+  MAP.days=b.dataset.d; document.querySelectorAll("#mapFilters .chip").forEach(x=>x.classList.toggle("on",x===b));
+  $("#mapPanel").innerHTML=""; MAP.sel=null; drawMapData();
+});
+
 /* ---------- 공통 이벤트 ---------- */
+function currentView(){ const s=document.querySelector(".view.on"); return s ? s.id.slice(2) : "today"; }
 function showView(v){
+  if (v==="map") initMap();
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
   if (v==="graph" && graph){
