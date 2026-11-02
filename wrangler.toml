@@ -1,0 +1,16 @@
+# 오늘도 지리는 소식 — geois.my/news
+# 프로그램 없이 public/ 폴더의 파일만 보여 주는 서비스예요.
+# 기사 데이터는 구글 시트(발행본4) CSV에서 페이지가 직접 읽어 와요.
+name = "geois-news"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./public"
+
+# geois.my 전체는 geois-way(주소 줄이기)가 받고,
+# news로 시작하는 주소만 이 서비스가 떼어 받아요. (Route가 Custom Domain보다 우선)
+# geois-way 쪽에서도 news로 시작하는 짧은 주소는 예약어로 막아 둬요.
+routes = [
+  { pattern = "geois.my/news*", zone_name = "geois.my" },
+  { pattern = "www.geois.my/news*", zone_name = "geois.my" },
+]

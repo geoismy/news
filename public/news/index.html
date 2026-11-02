@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘도 지리는 소식</title>
+<meta name="description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/force-graph@1.43.5/dist/force-graph.min.js"></script>
+<style>
+:root{
+  --bg:#f4f4f6; --paper:#ffffff; --ink:#16161d; --muted:#6a6a78; --line:#e2e2ea;
+  --accent:#5b4bd6; --accent-ink:#ffffff; --accent-soft:#ecebfb; --region:#8a6400; --region-soft:#fff4d6;
+  --topic:#1e6585; --topic-soft:#e3f2f9; --graph-bg:#07080f;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d0e15; --paper:#161722; --ink:#ecebf5; --muted:#9a99ad; --line:#272838;
+    --accent:#9d92f0; --accent-ink:#120f2a; --accent-soft:#221f3d; --region:#ffd166; --region-soft:#2e2712;
+    --topic:#8ecae6; --topic-soft:#142a33;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d0e15; --paper:#161722; --ink:#ecebf5; --muted:#9a99ad; --line:#272838;
+    --accent:#9d92f0; --accent-ink:#120f2a; --accent-soft:#221f3d; --region:#ffd166; --region-soft:#2e2712;
+    --topic:#8ecae6; --topic-soft:#142a33;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:880px;margin:0 auto;padding:0 16px}
+
+/* ---------- hero ---------- */
+.hero{position:relative;background:var(--graph-bg);height:clamp(380px,62vh,560px);overflow:hidden;color:#f1f0ff}
+#heroGraph{position:absolute;inset:0}
+.hero-shade{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(7,8,15,.55) 0%,rgba(7,8,15,0) 28%,rgba(7,8,15,0) 52%,rgba(7,8,15,.94) 100%)}
+.hero-text{position:absolute;left:0;right:0;bottom:0;padding-bottom:26px;pointer-events:none}
+.hero-top{position:absolute;left:0;right:0;top:0;padding-top:18px;pointer-events:none}
+.eyebrow{font-size:13px;letter-spacing:.08em;color:#a6a3c9}
+.hero h1{font-family:"Noto Serif KR",serif;font-weight:900;font-size:clamp(30px,7vw,52px);line-height:1.15;margin:6px 0 8px;letter-spacing:-1px;text-shadow:0 2px 18px rgba(0,0,0,.5)}
+.stats{margin:0;font-size:15px;color:#c9c8dc}
+.stats b{color:#fff;font-weight:700}
+.spot{margin:10px 0 16px;font-size:14px;color:#a6a3c9;min-height:22px;transition:opacity .4s}
+.spot .tg{display:inline-block;padding:1px 10px;border-radius:999px;margin-left:4px;font-weight:500}
+.spot .tg.r{background:rgba(255,209,102,.16);color:#ffd166}
+.spot .tg.t{background:rgba(142,202,230,.16);color:#a9d8ee}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}
+.btn-hero{appearance:none;border:0;font:inherit;font-weight:700;font-size:15px;padding:10px 18px;border-radius:999px;cursor:pointer;background:#ffd166;color:#2a1f00}
+.btn-hero.ghost{background:rgba(255,255,255,.08);color:#ecebf5;border:1px solid rgba(255,255,255,.2)}
+.btn-hero:hover{filter:brightness(1.08)}
+
+nav.tabs{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto}
+nav.tabs button{appearance:none;border:0;background:none;color:var(--muted);font:inherit;font-weight:500;padding:13px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs .kakao{margin-left:auto;align-self:center;flex:none;text-decoration:none;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;background:#fee500;color:#3a1d1d;white-space:nowrap}
+nav.tabs .kakao:hover{filter:brightness(.96)}
+nav.tabs .kakao .short{display:none}
+@media (max-width:560px){
+  nav.tabs .kakao{font-size:12px;padding:5px 10px}
+  nav.tabs .kakao .long{display:none} nav.tabs .kakao .short{display:inline}
+  nav.tabs button{padding:13px 10px;font-size:15px}
+  .datebar h2{font-size:17px}
+  .card{padding:16px 15px 12px}
+}
+main{padding:22px 0 60px}
+.view{display:none}.view.on{display:block}
+
+/* date bar */
+.datebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.datebar h2{font-size:20px;margin:0}
+.datebar .nav{display:flex;gap:6px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-size:14px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+
+/* cards */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 14px;margin-bottom:12px}
+.card .cat{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:4px}
+.card h3{font-size:17px;margin:0 0 6px;line-height:1.45}
+.card h3 a{text-decoration:none}
+.card h3 a:hover{text-decoration:underline;text-underline-offset:3px}
+.card p{margin:0 0 10px;font-size:15px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{appearance:none;border:0;font:inherit;font-size:13px;padding:3px 10px;border-radius:999px;cursor:pointer}
+.tag.r{background:var(--region-soft);color:var(--region)}
+.tag.t{background:var(--topic-soft);color:var(--topic)}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);gap:8px}
+.actions{display:flex;gap:6px;align-items:center}
+.copy{appearance:none;border:1px solid var(--line);background:none;color:var(--muted);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.copy.done{color:var(--accent);border-color:var(--accent)}
+.go{display:inline-block;text-decoration:none;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;padding:6px 14px;border-radius:999px}
+.go:hover{filter:brightness(1.08)}
+
+/* graph tab */
+.graphbox{position:relative;background:var(--graph-bg);border-radius:var(--radius);overflow:hidden;height:min(68vh,560px)}
+#graph{width:100%;height:100%}
+.legend{display:flex;gap:14px;align-items:center;font-size:13px;color:var(--muted);margin:10px 2px 0;flex-wrap:wrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.graphhint{position:absolute;left:12px;bottom:10px;font-size:12px;color:#7c7a96;pointer-events:none}
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chip{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--muted);font:inherit;font-size:13px;padding:4px 11px;border-radius:999px;cursor:pointer}
+.chip.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+
+/* tag panel */
+.panel{margin-top:18px}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.panel-head h2{font-size:19px;margin:0}
+.panel-head .count{color:var(--muted);font-size:14px;font-weight:400}
+.related{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+.related .tag{margin:2px}
+
+/* archive */
+.search{width:100%;padding:11px 14px;font:inherit;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);margin-bottom:10px}
+.search:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+.daygroup{margin:22px 0 8px;font-size:14px;color:var(--muted);font-weight:700}
+.row{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
+.row .e{flex:none;width:22px;text-align:center}
+.row .body{flex:1;min-width:0}
+.row .body a{text-decoration:none;font-weight:500}
+.row .body a:hover{text-decoration:underline}
+.row small{display:block;color:var(--muted);font-size:13px}
+.row .go{flex:none;font-size:12px;padding:4px 10px;margin-top:2px}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+.notice{font-size:13px;color:var(--muted);background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin-bottom:14px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:20px 0 40px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div id="heroGraph"></div>
+  <div class="hero-shade"></div>
+  <div class="hero-top"><div class="wrap eyebrow">GEOGRAPHY NEWS · 매일 아침</div></div>
+  <div class="hero-text"><div class="wrap">
+    <h1>🌏 오늘도 지리는 소식</h1>
+    <p class="stats" id="heroStats">불러오는 중…</p>
+    <div class="spot" id="heroSpot"></div>
+    <div class="hero-actions">
+      <button class="btn-hero" id="ctaToday">오늘의 소식 보기</button>
+      <button class="btn-hero ghost" id="ctaGraph">태그 지도 펼치기 →</button>
+    </div>
+  </div></div>
+</header>
+
+<nav class="tabs"><div class="wrap">
+  <button data-view="today" class="on">오늘의 소식</button>
+  <button data-view="graph">태그 지도</button>
+  <button data-view="archive">아카이브</button>
+  <a class="kakao" id="kakao" href="#" target="_blank" rel="noopener">💬 <span class="long">매일 아침 카톡방에서 만나요</span><span class="short">카톡방</span></a>
+</div></nav>
+
+<main class="wrap">
+  <div id="notice"></div>
+
+  <section class="view on" id="v-today">
+    <div class="datebar">
+      <h2 id="todayTitle">불러오는 중…</h2>
+      <div class="nav">
+        <button class="btn" id="prevDay">◀ 이전</button>
+        <button class="btn" id="nextDay">다음 ▶</button>
+      </div>
+    </div>
+    <div id="todayList"></div>
+  </section>
+
+  <section class="view" id="v-graph">
+    <div class="filters" id="graphFilters">
+      <button class="chip on" data-g="all">전체</button>
+      <button class="chip" data-g="r">지역만</button>
+      <button class="chip" data-g="t">주제만</button>
+    </div>
+    <div class="graphbox"><div id="graph"></div><div class="graphhint">점을 누르면 그 태그의 기사가 아래에 모여요</div></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#ffd166"></i>지역</span>
+      <span><i class="dot" style="background:#8ecae6"></i>주제</span>
+      <span>점 크기 = 기사 수 · 선 굵기 = 함께 나온 횟수</span>
+    </div>
+    <div class="panel" id="tagPanel"></div>
+  </section>
+
+  <section class="view" id="v-archive">
+    <input class="search" id="q" type="search" placeholder="검색: 화산, 아이슬란드, 인구…">
+    <div class="filters" id="catFilters"></div>
+    <div id="archiveList"></div>
+  </section>
+</main>
+
+<footer>🌏 오늘도 지리는 소식</footer>
+
+<script>
+/* ▼ 발행본4 CSV 공개 주소를 여기에 넣으면 실제 데이터로 바뀝니다 */
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6U4saJYXK6x-nMabUrrwouaPBSFBZUSwIjEaApMlS70C63wzH7gkRd3a50zPjA9YGzUo96Ak71MYN/pub?gid=1528413879&single=true&output=csv";
+/* ▼ 카카오톡 오픈채팅방 주소 */
+const KAKAO_URL = "https://open.kakao.com/o/gLQT2WTi";
+
+const EMOJI = {"지형":"🏔️","기후":"🌦️","자연재해":"🌋","도시·촌락":"🏘️","교통":"✈️","인구":"👥","경제":"💰","문화":"🏛️","생물":"🌿","정치·지정학":"🌐","자원·에너지":"⚡","AI·지리정보기술":"🗺️","여행":"🧳","보건·질병":"🩺","교육":"🧭","와우":"😆"};
+
+/* 샘플 데이터 (CSV_URL이 비어 있을 때만 사용) */
+const SAMPLE = [
+ {날짜:"2026-10-28",분야:"인구",제목:"영암군, 주민 5명 중 1명이 이주배경",요약:"전남 영암군에서 외국인 주민과 귀화자 등 이주배경 주민이 전체의 20%를 넘었습니다. 조선업 일자리를 따라 모인 사람들이 지역의 인구 구조를 빠르게 바꾸고 있습니다.",지역태그:"영암, 전남",주제태그:"이주배경, 다문화",링크:"https://example.com/1",매체:"경향신문"},
+ {날짜:"2026-10-28",분야:"여행",제목:"서울 서초구 '고터' 일대, 걷기 여행 코스로",요약:"서초구가 고속터미널 일대를 잇는 도보 여행 코스를 만들었습니다. 교통 거점이던 곳이 머무는 공간으로 바뀌는 사례입니다.",지역태그:"서울",주제태그:"관광, 도보여행",링크:"https://example.com/2",매체:"한겨레"},
+ {날짜:"2026-10-28",분야:"교통",제목:"태안군 국도 32호선 확장 착공",요약:"충남 태안을 잇는 국도 32호선 확장 공사가 시작됐습니다. 반도 지형 탓에 우회로가 없던 지역의 교통 여건이 나아질 전망입니다.",지역태그:"태안, 충남",주제태그:"도로",링크:"https://example.com/3",매체:"오마이뉴스"},
+ {날짜:"2026-10-28",분야:"정치·지정학",제목:"러시아 점령 우크라이나 지역의 변화",요약:"러시아가 점령한 우크라이나 동부에서 행정 체계와 교육이 러시아식으로 바뀌고 있습니다. 국경선이 실제 생활 속에서 어떻게 움직이는지 보여줍니다.",지역태그:"우크라이나, 러시아",주제태그:"분쟁지역, 국경",링크:"https://example.com/4",매체:"BBC코리아"},
+ {날짜:"2026-10-28",분야:"정치·지정학",제목:"트럼프, 베네수엘라 원유 제재 강화",요약:"미국이 베네수엘라 원유 수출 제재를 다시 강화했습니다. 세계 최대 매장량을 가진 나라의 석유가 외교 수단이 되고 있습니다.",지역태그:"베네수엘라, 미국",주제태그:"국제관계, 석유",링크:"https://example.com/5",매체:"민들레"},
+ {날짜:"2026-10-28",분야:"교통",제목:"호주, 전기자전거 화재 대책",요약:"호주에서 전기자전거 배터리 화재가 잇따르자 정부가 안전 기준을 마련했습니다. 도시 이동 수단이 바뀌며 생긴 새로운 위험입니다.",지역태그:"호주",주제태그:"전동모빌리티",링크:"https://example.com/6",매체:"The Conversation"},
+ {날짜:"2026-10-28",분야:"지형",제목:"남극점 도착은 늦었지만, 스콧이 남긴 것",요약:"영국 해군 장교 로버트 스콧은 남극점 경쟁에서 졌지만 그의 탐험대가 모은 암석과 기상 기록은 지금도 연구에 쓰입니다. 극지 탐험이 곧 지리 조사였던 시절의 이야기입니다.",지역태그:"남극",주제태그:"극지탐험",링크:"https://example.com/7",매체:"The Conversation"},
+ {날짜:"2026-10-28",분야:"와우",제목:"영국 타임아웃 선정 세계에서 가장 멋진 동네",요약:"여행 매체 타임아웃이 올해 세계에서 가장 멋진 동네를 발표했습니다. 오래된 공장 지대가 문화 공간으로 바뀐 곳들이 상위권을 차지했습니다.",지역태그:"세계, 영국",주제태그:"도시재생",링크:"https://example.com/8",매체:"aagag.com"},
+ {날짜:"2026-10-27",분야:"자연재해",제목:"아이슬란드 화산, 유럽 하늘길 또 막았다",요약:"레이캬네스반도에서 2년 새 열 번째 분화가 일어났습니다. 판 경계 위에 있는 나라라 분화는 앞으로도 반복될 전망입니다.",지역태그:"아이슬란드, 유럽",주제태그:"화산, 항공",링크:"https://example.com/9",매체:"BBC코리아"},
+ {날짜:"2026-10-27",분야:"기후",제목:"남극 빙하 아래 거대한 호수 발견",요약:"남극 빙하 아래에서 서울 면적만 한 호수가 확인됐습니다. 얼음 밑 물길이 빙하가 바다로 미끄러지는 속도를 바꿀 수 있습니다.",지역태그:"남극",주제태그:"빙하, 해수면",링크:"https://example.com/10",매체:"한겨레"},
+ {날짜:"2026-10-27",분야:"경제",제목:"우량 농지에 들어서는 태양광",요약:"나랏돈을 들여 정리한 농지에 태양광 패널이 늘고 있습니다. 필자는 한번 바뀐 농토는 되돌리기 어렵다며 우려합니다.",지역태그:"한국",주제태그:"농지전용, 태양광",링크:"https://example.com/11",매체:"오마이뉴스"},
+ {날짜:"2026-10-27",분야:"인구",제목:"지방 소멸 지도, 10년 새 두 배",요약:"소멸 위험 지역으로 분류된 시군이 10년 사이 두 배로 늘었습니다. 수도권과 거리가 멀수록 위험도가 높았습니다.",지역태그:"한국",주제태그:"지방소멸, 이주배경",링크:"https://example.com/12",매체:"경향신문"}
+];
+
+/* ---------- 유틸 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const splitTags = s => String(s||"").split(/[,，]/).map(t=>t.replace(/^#/,"").trim()).filter(Boolean);
+function normDate(v){
+  const m = String(v||"").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  return m ? `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}` : "";
+}
+function fmtDate(d){ const [y,m,dd]=d.split("-").map(Number); const w="일월화수목금토"[new Date(y,m-1,dd).getDay()]; return `${m}월 ${dd}일 (${w})`; }
+
+let DATA = [], DATES = [], dayIdx = 0, gFilter = "all", catFilter = "";
+let graph = null, heroGraph = null, heroPaused = false;
+
+/* ---------- 데이터 ---------- */
+async function load(){
+  let rows = SAMPLE, isSample = true;
+  if (CSV_URL){
+    try{
+      const res = await fetch(CSV_URL, {cache:"no-store"});
+      const text = await res.text();
+      rows = Papa.parse(text, {header:true, skipEmptyLines:true}).data;
+      isSample = false;
+      if (!rows.some(r => r && normDate(r.날짜))) { rows = SAMPLE; isSample = true; }
+    }catch(e){ console.warn(e); rows = SAMPLE; isSample = true; }
+  }
+  DATA = rows
+    .filter(r => r && normDate(r.날짜) && (r.제목 || r.요약))
+    .map((r,i) => ({
+      id:i, date:normDate(r.날짜), cat:String(r.분야||"").trim(),
+      title:String(r.제목||"").trim(), summary:String(r.요약||"").trim(),
+      regions:splitTags(r.지역태그), topics:splitTags(r.주제태그),
+      link:String(r.링크||"").trim(), source:String(r.매체||"").trim()
+    }));
+  DATES = [...new Set(DATA.map(d=>d.date))].sort().reverse();
+  if (isSample) $("#notice").innerHTML = `<div class="notice">지금은 샘플 데이터예요. CSV 주소를 연결하면 실제 발행 기사로 바뀝니다.</div>`;
+  renderToday(); renderCats(); renderArchive(); renderHero(); buildGraph();
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h.startsWith("tag=")) openTag(h.slice(4), false);
+}
+
+/* ---------- 카드 ---------- */
+function tagBtns(d){
+  return d.regions.map(t=>`<button class="tag r" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")
+       + d.topics.map(t=>`<button class="tag t" data-tag="${esc(t)}">#${esc(t)}</button>`).join("");
+}
+function card(d, prefix=""){
+  return `<article class="card">
+    <div class="cat">${prefix}${EMOJI[d.cat]||"❓"} ${esc(d.cat)}</div>
+    <h3><a href="${esc(d.link)}" target="_blank" rel="noopener">${esc(d.title)}</a></h3>
+    <p>${esc(d.summary)}</p>
+    <div class="tags">${tagBtns(d)}</div>
+    <div class="meta"><span>${esc(d.source)}</span>
+      <a class="go" href="${esc(d.link)}" target="_blank" rel="noopener">기사 보기 →</a></div>
+  </article>`;
+}
+
+/* ---------- 오늘의 소식 ---------- */
+function renderToday(){
+  if (!DATES.length){ $("#todayTitle").textContent="아직 소식이 없어요"; return; }
+  const date = DATES[dayIdx];
+  const items = DATA.filter(d=>d.date===date);
+  $("#todayTitle").textContent = `${fmtDate(date)} · ${items.length}건`;
+  $("#todayList").innerHTML = items.map(d=>card(d)).join("");
+  $("#prevDay").disabled = dayIdx >= DATES.length-1;
+  $("#nextDay").disabled = dayIdx <= 0;
+}
+$("#prevDay").onclick = ()=>{ dayIdx++; renderToday(); scrollToMain(); };
+$("#nextDay").onclick = ()=>{ dayIdx--; renderToday(); scrollToMain(); };
+function scrollToMain(){ $("nav.tabs").scrollIntoView({behavior:"smooth"}); }
+
+/* ---------- 아카이브 ---------- */
+function renderCats(){
+  const cats = Object.keys(EMOJI).filter(c=>DATA.some(d=>d.cat===c));
+  $("#catFilters").innerHTML = `<button class="chip on" data-c="">전체</button>` +
+    cats.map(c=>`<button class="chip" data-c="${esc(c)}">${EMOJI[c]} ${esc(c)}</button>`).join("");
+}
+function renderArchive(){
+  const q = $("#q").value.trim().toLowerCase();
+  const list = DATA.filter(d=>{
+    if (catFilter && d.cat!==catFilter) return false;
+    if (!q) return true;
+    return [d.title,d.summary,d.cat,d.source,...d.regions,...d.topics].join(" ").toLowerCase().includes(q);
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+  if (!list.length){ $("#archiveList").innerHTML = `<div class="empty">찾는 기사가 없어요</div>`; return; }
+  let html="", last="";
+  for (const d of list){
+    if (d.date!==last){ html+=`<div class="daygroup">${fmtDate(d.date)}</div>`; last=d.date; }
+    html += `<div class="row"><span class="e">${EMOJI[d.cat]||"❓"}</span><div class="body">
+      <a href="${esc(d.link)}" target="_blank" rel="noopener">${esc(d.title)}</a>
+      <small>${[...d.regions,...d.topics].map(t=>"#"+esc(t)).join(" ")} · ${esc(d.source)}</small></div>
+      <a class="go" href="${esc(d.link)}" target="_blank" rel="noopener">보기 →</a></div>`;
+  }
+  $("#archiveList").innerHTML = html;
+}
+$("#q").addEventListener("input", renderArchive);
+$("#catFilters").addEventListener("click", e=>{
+  const b=e.target.closest(".chip"); if(!b) return;
+  catFilter=b.dataset.c; document.querySelectorAll("#catFilters .chip").forEach(x=>x.classList.toggle("on",x===b)); renderArchive();
+});
+
+/* ---------- 그래프 공통 ---------- */
+function graphData(filter){
+  const nodes = new Map(), links = new Map();
+  for (const d of DATA){
+    const tags = [
+      ...(filter!=="t" ? d.regions.map(t=>({id:t,type:"r"})) : []),
+      ...(filter!=="r" ? d.topics.map(t=>({id:t,type:"t"})) : [])
+    ];
+    for (const t of tags){
+      const key = t.type+":"+t.id;
+      if (!nodes.has(key)) nodes.set(key,{id:key,name:t.id,type:t.type,count:0});
+      nodes.get(key).count++;
+    }
+    for (let i=0;i<tags.length;i++) for (let j=i+1;j<tags.length;j++){
+      const a=tags[i].type+":"+tags[i].id, b=tags[j].type+":"+tags[j].id;
+      if (a===b) continue;
+      const k = a<b ? a+"|"+b : b+"|"+a;
+      if (!links.has(k)) links.set(k,{source:a<b?a:b,target:a<b?b:a,w:0});
+      links.get(k).w++;
+    }
+  }
+  return {nodes:[...nodes.values()], links:[...links.values()]};
+}
+const nodeR = n => Math.sqrt(2+n.count*2)*3;
+
+function makeGraph(el, hero){
+  const st = {hover:null, hiN:new Set(), hiL:new Set()};
+  const g = ForceGraph()(el)
+    .backgroundColor("rgba(0,0,0,0)")
+    .nodeId("id")
+    .nodeVal(n=>2+n.count*2)
+    .linkColor(l=> st.hiL.size ? (st.hiL.has(l)?"rgba(236,234,255,.85)":"rgba(255,255,255,.05)") : "rgba(200,198,235,.2)")
+    .linkWidth(l=> (st.hiL.has(l)?1.6:0.6)*Math.sqrt(l.w))
+    .nodeCanvasObject((n,ctx,scale)=>{
+      const r = nodeR(n);
+      const dim = st.hiN.size && !st.hiN.has(n);
+      const col = n.type==="r" ? "255,209,102" : "142,202,230";
+      if (st.hiN.has(n) && !dim){
+        ctx.beginPath(); ctx.arc(n.x,n.y,r*2.2,0,2*Math.PI);
+        ctx.fillStyle=`rgba(${col},0.12)`; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,2*Math.PI);
+      ctx.fillStyle = `rgba(${col},${dim?0.15:0.95})`; ctx.fill();
+      if (n===st.hover){ ctx.lineWidth=2/scale; ctx.strokeStyle="#fff"; ctx.stroke(); }
+      const showLabel = hero ? (n.count>=2 || st.hiN.has(n)) : (scale>1.1 || n.count>=2 || st.hiN.has(n));
+      if (showLabel){
+        const fs = Math.max((hero?13:11)/scale, 3);
+        ctx.font = `${n===st.hover?700:500} ${fs}px "Noto Sans KR",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+        ctx.fillStyle = dim ? "rgba(220,218,240,.18)" : "#e6e5f3";
+        ctx.fillText(n.name, n.x, n.y+r+2/scale);
+      }
+    })
+    .nodePointerAreaPaint((n,color,ctx)=>{ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(n.x,n.y,nodeR(n)+4,0,2*Math.PI); ctx.fill(); })
+    .onNodeClick(n=>openTag(n.name))
+    .cooldownTicks(150);
+  g.d3Force("charge").strength(hero?-120:-90);
+  g._setHi = n => {
+    st.hover=n||null; st.hiN.clear(); st.hiL.clear();
+    if (n){ st.hiN.add(n); g.graphData().links.forEach(l=>{ if(l.source===n||l.target===n){ st.hiL.add(l); st.hiN.add(l.source); st.hiN.add(l.target);} }); }
+  };
+  g.onNodeHover(n=>{
+    g._setHi(n); el.style.cursor = n ? "pointer" : "";
+    if (hero){ heroPaused = !!n; if (n) showSpot(n); }
+  });
+  if (hero) g.enableZoomInteraction(false).enablePanInteraction(false).enableNodeDrag(false).autoPauseRedraw(false);
+  new ResizeObserver(()=>{ if(el.clientWidth) g.width(el.clientWidth).height(el.clientHeight); }).observe(el);
+  return g;
+}
+
+/* ---------- 히어로 ---------- */
+function showSpot(n){
+  const arts = DATA.filter(d=>d.regions.includes(n.name)||d.topics.includes(n.name)).length;
+  const nb = new Set();
+  heroGraph.graphData().links.forEach(l=>{ if(l.source===n) nb.add(l.target.name); if(l.target===n) nb.add(l.source.name); });
+  const rel = [...nb].slice(0,3).map(t=>"#"+esc(t)).join(" ");
+  $("#heroSpot").innerHTML = `지금 비추는 태그<span class="tg ${n.type}">#${esc(n.name)}</span> · 기사 ${arts}건${rel?` · ${rel}와 연결`:""}`;
+}
+function renderHero(){
+  const regions = new Set(DATA.flatMap(d=>d.regions)), topics = new Set(DATA.flatMap(d=>d.topics));
+  $("#heroStats").innerHTML = `지금까지 <b>${DATA.length}</b>개의 소식이 <b>${regions.size}</b>곳의 지역과 <b>${topics.size}</b>개의 주제로 이어져 있어요`;
+  const el = $("#heroGraph");
+  if (!window.ForceGraph) return;
+  heroGraph = makeGraph(el, true);
+  let fitted = false;
+  heroGraph.onEngineStop(()=>{ if(!fitted){ fitted=true; heroGraph.zoomToFit(800, el.clientWidth<600?24:60); } });
+  heroGraph.graphData(graphData("all"));
+  const order = [...heroGraph.graphData().nodes].sort((a,b)=>b.count-a.count).slice(0,10);
+  let i = 0;
+  const tick = ()=>{ if(heroPaused || !order.length) return; const n=order[i++%order.length]; heroGraph._setHi(n); showSpot(n); };
+  setTimeout(tick, 1600); setInterval(tick, 3200);
+}
+$("#ctaToday").onclick = ()=>{ showView("today"); scrollToMain(); };
+$("#ctaGraph").onclick = ()=>{ showView("graph"); scrollToMain(); };
+
+/* ---------- 태그 지도 탭 ---------- */
+function buildGraph(){
+  const el = $("#graph");
+  if (!window.ForceGraph){ el.innerHTML='<div class="empty" style="color:#9aa">그래프를 불러오지 못했어요</div>'; return; }
+  if (!graph) graph = makeGraph(el, false);
+  graph.graphData(graphData(gFilter));
+  if (el.clientWidth) setTimeout(()=>graph.zoomToFit(400,40),700);
+}
+$("#graphFilters").addEventListener("click", e=>{
+  const b=e.target.closest(".chip"); if(!b) return;
+  gFilter=b.dataset.g; document.querySelectorAll("#graphFilters .chip").forEach(x=>x.classList.toggle("on",x===b)); buildGraph();
+});
+
+/* ---------- 태그 모아보기 ---------- */
+function openTag(tag, scroll=true){
+  showView("graph");
+  const list = DATA.filter(d=>d.regions.includes(tag)||d.topics.includes(tag)).sort((a,b)=>b.date.localeCompare(a.date));
+  const co = {};
+  list.forEach(d=>[...d.regions,...d.topics].forEach(t=>{ if(t!==tag) co[t]=(co[t]||0)+1; }));
+  const rel = Object.entries(co).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const isR = DATA.some(d=>d.regions.includes(tag));
+  $("#tagPanel").innerHTML = `
+    <div class="panel-head"><h2>#${esc(tag)} <span class="count">${list.length}건</span></h2>
+      <button class="btn" id="closeTag">닫기</button></div>
+    ${rel.length?`<div class="related">함께 나온 태그 ${rel.map(([t])=>`<button class="tag ${DATA.some(d=>d.regions.includes(t))?"r":"t"}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`:""}
+    ${list.map(d=>card(d, fmtDate(d.date)+" · ")).join("")}`;
+  $("#closeTag").onclick=()=>{ $("#tagPanel").innerHTML=""; history.replaceState(null,"",location.pathname); graph && graph._setHi(null); };
+  history.replaceState(null,"","#tag="+encodeURIComponent(tag));
+  if (graph){
+    setTimeout(()=>{
+      const ns = graph.graphData().nodes;
+      const n = ns.find(x=>x.name===tag && x.type===(isR?"r":"t")) || ns.find(x=>x.name===tag);
+      if (n && n.x!=null){ graph._setHi(n); graph.centerAt(n.x,n.y,600); graph.zoom(2.2,600); }
+    }, 150);
+  }
+  if (scroll) setTimeout(()=>$("#tagPanel").scrollIntoView({behavior:"smooth",block:"start"}), 200);
+}
+
+/* ---------- 공통 이벤트 ---------- */
+function showView(v){
+  document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  if (v==="graph" && graph){
+    const el=$("#graph"); graph.width(el.clientWidth).height(el.clientHeight);
+    if (!location.hash.startsWith("#tag=")) setTimeout(()=>graph.zoomToFit(400,40),60);
+  }
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showView(b.dataset.view));
+document.addEventListener("click", async e=>{
+  const t=e.target.closest(".tag"); if(t){ openTag(t.dataset.tag); return; }
+});
+if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
+
+load();
+</script>
+</body>
+</html>
