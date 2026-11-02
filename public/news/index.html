@@ -130,7 +130,7 @@ main{padding:22px 0 60px}
 /* 뉴스 지도 */
 .mapwrap{display:grid;grid-template-columns:1fr 170px;gap:10px;background:var(--graph-bg);border-radius:var(--radius);padding:14px 12px 12px;position:relative}
 .mapcell{position:relative}
-.mapcell svg{display:block;width:100%;height:auto;overflow:visible}
+.mapcell svg{display:block;width:100%;height:auto;overflow:hidden}
 .land{fill:none;stroke:#6f6ba8;stroke-opacity:.55;stroke-linecap:round}
 .kland{fill:none;stroke:#4e4b7a;stroke-opacity:.6;stroke-linecap:round}
 .kland.kr{stroke:#8f8ad0;stroke-opacity:.75}
@@ -145,7 +145,18 @@ main{padding:22px 0 60px}
 .pulse{fill:none;stroke:#ffd166;stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:pulse 2.2s ease-out infinite;pointer-events:none}
 @keyframes pulse{from{transform:scale(1);opacity:.9}to{transform:scale(3.2);opacity:0}}
 .krframe{fill:none;stroke:#8ecae6;stroke-opacity:.6;stroke-dasharray:3 3}
-.mlabels{position:absolute;inset:0;pointer-events:none}
+.mlabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.mapcell svg{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.mapcell svg.zoomed{touch-action:none;cursor:grab}
+.mapcell svg.dragging{cursor:grabbing}
+.arc{vector-effect:non-scaling-stroke}
+.zoomctl{position:absolute;right:4px;top:4px;display:flex;flex-direction:column;gap:4px;z-index:2}
+.inset .zoomctl{top:22px}
+.zoomctl button{appearance:none;width:28px;height:28px;border-radius:8px;border:1px solid #2f3048;background:rgba(22,23,34,.85);color:#ecebf5;font:700 15px/1 system-ui,sans-serif;cursor:pointer;padding:0}
+.zoomctl button:hover{border-color:#9d92f0}
+.zoomctl .reset{font-size:12px}
+.zoomhint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(22,23,34,.9);color:#ecebf5;font-size:13px;padding:8px 14px;border-radius:999px;pointer-events:none;opacity:0;transition:opacity .25s;z-index:2;white-space:nowrap}
+.zoomhint.show{opacity:1}
 .mlabel{position:absolute;transform:translate(0,-50%);font-size:12px;font-weight:500;color:#e6e5f3;white-space:nowrap;text-shadow:0 0 4px #07080f,0 0 8px #07080f;pointer-events:auto;cursor:pointer}
 .mlabel.recent{color:#ffd166;font-weight:700}
 .mlabel.on{color:#fff;font-weight:700}
@@ -583,7 +594,7 @@ function buildMap(){
   const defs = el("defs", {}, ws);
   const g = el("linearGradient", {id:"arcGrad", gradientUnits:"userSpaceOnUse", x1:0, y1:0, x2:W.W, y2:0}, defs);
   el("stop", {offset:"0", "stop-color":"#8ecae6"}, g); el("stop", {offset:"1", "stop-color":"#ffd166"}, g);
-  el("path", {class:"land", d:dotPath(W.dots,2), "stroke-width":W.r*2}, ws);
+  el("path", {class:"land", d:dotPath(W.dots,2), "stroke-width":W.r*2, "data-w0":W.r*2}, ws);
   const [fx0,fy0] = projW([KOREA_BOX.lat1, KOREA_BOX.lng0]), [fx1,fy1] = projW([KOREA_BOX.lat0, KOREA_BOX.lng1]);
   el("rect", {class:"krframe", x:fx0-3, y:fy0-3, width:fx1-fx0+6, height:fy1-fy0+6, rx:4}, ws);
   el("g", {class:"arcs", id:"worldArcs"}, ws); el("g", {id:"worldBubs"}, ws);
@@ -593,14 +604,16 @@ function buildMap(){
   const ks = el("svg", {viewBox:`0 0 ${K.W} ${K.H}`, id:"koreaSvg", role:"img", "aria-label":"한반도 확대 지도"});
   const other = [], kr = [];
   for (let i=0;i<K.dots.length;i+=3) (K.dots[i+2] ? kr : other).push(K.dots[i], K.dots[i+1]);
-  el("path", {class:"kland", d:dotPath(other,2), "stroke-width":K.r*2}, ks);
-  el("path", {class:"kland kr", d:dotPath(kr,2), "stroke-width":K.r*2}, ks);
+  el("path", {class:"kland", d:dotPath(other,2), "stroke-width":K.r*2, "data-w0":K.r*2}, ks);
+  el("path", {class:"kland kr", d:dotPath(kr,2), "stroke-width":K.r*2, "data-w0":K.r*2}, ks);
   el("g", {id:"koreaBubs"}, ks);
   $("#koreaCell").appendChild(ks);
   const kl = document.createElement("div"); kl.className = "mlabels"; kl.id = "koreaLabels"; $("#koreaCell").appendChild(kl);
 
   $("#mapLatest").textContent = DATES[0] ? dayLabel(DATES[0]) : "오늘";
   drawMapData();
+  makeZoom(ws, $("#worldCell"), 6);
+  makeZoom(ks, $("#koreaCell"), 8);
   new ResizeObserver(()=>placeLabels()).observe($("#mapWrap"));
 }
 
@@ -641,8 +654,9 @@ function drawMapData(){
   }
   /* 버블: 큰 것부터 그려서 작은 게 위에 오게 */
   const bub = (parent, x, y, r, p, cls) => {
-    if (p.recent) el("circle", {class:"pulse", cx:x, cy:y, r}, parent);
-    const c = el("circle", {class:`bub ${cls}${p.recent?" recent":""}`, cx:x, cy:y, r}, parent);
+    const k = parent.closest("svg")._zoom ? parent.closest("svg")._zoom.k : 1, rr = r/Math.pow(k,ZOOM_SHRINK);
+    if (p.recent) el("circle", {class:"pulse", cx:x, cy:y, r:rr, "data-r0":r}, parent);
+    const c = el("circle", {class:`bub ${cls}${p.recent?" recent":""}`, cx:x, cy:y, r:rr, "data-r0":r}, parent);
     c.dataset.name = p.name; c.dataset.c = p.c;
     return c;
   };
@@ -663,12 +677,16 @@ function placeLabels(){
     const svg = $("#"+svgId), layer = $("#"+layerId); if (!svg) return;
     layer.innerHTML = "";
     const vb = svg.viewBox.baseVal, sc = svg.clientWidth / vb.width; if (!sc) return;
+    const zk = svg._zoom ? svg._zoom.k : 1;
+    max = Math.round(max * Math.min(zk, 3));
     const sb = svg.getBoundingClientRect(), cb = layer.getBoundingClientRect();
     const boxes = [];
     for (const p of list){
       if (boxes.length >= max) break;
       const ox = sb.left - cb.left, oy = sb.top - cb.top; // 제목 줄 등으로 밀린 만큼
-      const [x,y] = proj(p), r = (p.r||0)*sc, px = ox + x*sc + r + 4, py = oy + y*sc;
+      const [x0,y0] = proj(p), x = x0 - vb.x, y = y0 - vb.y;
+      if (x < 0 || y < 0 || x > vb.width || y > vb.height) continue; // 확대해서 화면 밖
+      const r = (p.r||0)/Math.pow(zk,ZOOM_SHRINK)*sc, px = ox + x*sc + r + 4, py = oy + y*sc;
       const label = p.label || p.name, w = label.length*12 + 8, h = 16;
       const box = [px, py-h/2, px+w, py+h/2];
       if (box[2] > ox + svg.clientWidth + 4) { box[0] = ox + x*sc - r - 4 - w; box[2] = ox + x*sc - r - 4; }
@@ -698,6 +716,7 @@ function bindTarget(t){
   t.addEventListener("mousemove", e=>moveTip(e));
   t.addEventListener("mouseleave", ()=>hoverPlace(null));
   t.addEventListener("click", ()=>{
+    if (MAP.dragged) return;
     if (name==="@한반도"){ const k=$("#koreaCell"); k.classList.remove("flash"); void k.offsetWidth; k.classList.add("flash");
       if (innerWidth<=640) k.scrollIntoView({behavior:"smooth", block:"center"}); return; }
     openPlace(name);
@@ -727,6 +746,89 @@ function moveTip(e){
   let x = e.clientX - box.left + 14, y = e.clientY - box.top + 14;
   if (x + tip.offsetWidth > box.width - 6) x = e.clientX - box.left - tip.offsetWidth - 14;
   tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+
+/* ---------- 지도 확대·이동 ----------
+ * 버튼(+ − ⟲), 두 번 누르기, Ctrl+스크롤, 두 손가락 벌리기. 확대하면 끌어서 옮기기.
+ * 확대할수록 점과 원은 덜 커지게(ZOOM_SHRINK) 해서 서로 떨어져 보이게 */
+const ZOOM_SHRINK = 0.65;
+function makeZoom(svg, cell, maxK){
+  const W = svg.viewBox.baseVal.width, H = svg.viewBox.baseVal.height;
+  const st = svg._zoom = {x:0, y:0, k:1};
+  let raf = 0;
+  const apply = () => {
+    const w = W/st.k, h = H/st.k;
+    st.x = Math.min(Math.max(st.x, 0), W-w); st.y = Math.min(Math.max(st.y, 0), H-h);
+    svg.setAttribute("viewBox", `${st.x} ${st.y} ${w} ${h}`);
+    svg.classList.toggle("zoomed", st.k > 1.01);
+    const f = Math.pow(st.k, ZOOM_SHRINK);
+    svg.querySelectorAll("[data-r0]").forEach(c=>c.setAttribute("r", c.dataset.r0/f));
+    svg.querySelectorAll("[data-w0]").forEach(c=>c.setAttribute("stroke-width", c.dataset.w0/Math.pow(st.k,0.45)));
+    reset.style.visibility = st.k > 1.01 ? "visible" : "hidden";
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(placeLabels);
+  };
+  const toSvg = (cx, cy) => { const r = svg.getBoundingClientRect(), w = W/st.k, h = H/st.k;
+    return [st.x + (cx-r.left)/r.width*w, st.y + (cy-r.top)/r.height*h]; };
+  const zoomAt = (k, px, py) => {
+    k = Math.min(Math.max(k, 1), maxK);
+    const w = W/st.k, h = H/st.k, fx = (px-st.x)/w, fy = (py-st.y)/h;
+    st.k = k; st.x = px - fx*W/k; st.y = py - fy*H/k; apply();
+  };
+  const center = () => [st.x + W/st.k/2, st.y + H/st.k/2];
+  /* 부드럽게 */
+  const animateTo = (k, px, py) => {
+    const k0 = st.k, t0 = performance.now();
+    const step = t => { const a = Math.min((t-t0)/220, 1), e = 1-Math.pow(1-a,3);
+      zoomAt(k0 + (k-k0)*e, px, py); if (a < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  svg._zoomTo = (k, px, py) => animateTo(k, px, py);
+
+  /* 버튼 */
+  const ctl = document.createElement("div"); ctl.className = "zoomctl";
+  ctl.innerHTML = `<button type="button" aria-label="확대">+</button><button type="button" aria-label="축소">−</button><button type="button" class="reset" aria-label="처음 크기로">⟲</button>`;
+  const [plus, minus, reset] = ctl.querySelectorAll("button");
+  plus.onclick = () => animateTo(st.k*1.8, ...center());
+  minus.onclick = () => animateTo(st.k/1.8, ...center());
+  reset.onclick = () => { const k0 = st.k; animateTo(1, W/2, H/2); };
+  cell.appendChild(ctl);
+  const hint = document.createElement("div"); hint.className = "zoomhint"; cell.appendChild(hint);
+  let hintT = 0;
+  const showHint = txt => { hint.textContent = txt; hint.classList.add("show"); clearTimeout(hintT); hintT = setTimeout(()=>hint.classList.remove("show"), 1300); };
+
+  /* Ctrl(⌘)+스크롤: 그냥 스크롤은 페이지가 내려가게 둠 */
+  svg.addEventListener("wheel", e => {
+    if (!(e.ctrlKey || e.metaKey)){ showHint(/Mac/.test(navigator.platform) ? "⌘ + 스크롤로 확대해요" : "Ctrl + 스크롤로 확대해요"); return; }
+    e.preventDefault(); zoomAt(st.k*Math.exp(-e.deltaY*0.0025), ...toSvg(e.clientX, e.clientY));
+  }, {passive:false});
+  /* 두 번 누르기 */
+  svg.addEventListener("dblclick", e => { e.preventDefault(); const [px,py] = toSvg(e.clientX, e.clientY); animateTo(st.k >= maxK*0.95 ? 1 : st.k*2.2, px, py); });
+
+  /* 끌기 · 두 손가락 */
+  const pts = new Map(); let last = null, pinch = null, moved = 0;
+  svg.addEventListener("pointerdown", e => {
+    pts.set(e.pointerId, [e.clientX, e.clientY]); moved = 0; MAP.dragged = false;
+    if (pts.size === 2){ const [a,b] = [...pts.values()];
+      pinch = {d:Math.hypot(a[0]-b[0], a[1]-b[1]), k:st.k, c:toSvg((a[0]+b[0])/2, (a[1]+b[1])/2)}; }
+    last = [e.clientX, e.clientY];
+  });
+  window.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size >= 2 && pinch){
+      const [a,b] = [...pts.values()], d = Math.hypot(a[0]-b[0], a[1]-b[1]);
+      zoomAt(pinch.k * d/pinch.d, ...pinch.c); MAP.dragged = true; return;
+    }
+    if (st.k <= 1.01 || !last) return;
+    const r = svg.getBoundingClientRect(), dx = e.clientX-last[0], dy = e.clientY-last[1];
+    moved += Math.abs(dx) + Math.abs(dy); last = [e.clientX, e.clientY];
+    if (moved > 4){ MAP.dragged = true; svg.classList.add("dragging"); hoverPlace(null); }
+    st.x -= dx / r.width * W/st.k; st.y -= dy / r.height * H/st.k; apply();
+  });
+  const end = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size){ last = null; svg.classList.remove("dragging");
+    setTimeout(()=>MAP.dragged = false, 0); } };
+  window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
+  apply();
 }
 
 /* 지역 하나 열기: 지도에서 강조하고 아래에 기사 모으기 */
