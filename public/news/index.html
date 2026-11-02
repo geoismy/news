@@ -175,6 +175,37 @@ main{padding:22px 0 60px}
   .mlabel{font-size:11px}
 }
 
+/* ── 단 나누기: 넓은 화면은 왼쪽 목록 + 오른쪽 고정 그림, 좁은 화면은 그림을 위에 붙이고 목록이 아래로 */
+body.wide main.wrap{max-width:1280px}
+.split .panel{margin-top:0}
+.split .panel:empty::before{content:attr(data-empty);display:block;color:var(--muted);font-size:14px;text-align:center;
+  border:1px dashed var(--line);border-radius:12px;padding:28px 14px;background:var(--paper)}
+.seg{display:none;margin-left:auto;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper)}
+.seg button{appearance:none;border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:4px 12px;cursor:pointer}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+@media (min-width:1024px){
+  .view.split.on{display:grid;grid-template-columns:minmax(340px,5fr) 7fr;grid-template-areas:"list vis";gap:22px;align-items:start}
+  .split-list{grid-area:list;min-width:0}
+  .split-vis{grid-area:vis;position:sticky;top:62px;min-width:0}
+  #v-graph .graphbox{height:calc(100vh - 62px - 120px);min-height:380px}
+  .split .panel-head{position:sticky;top:50px;z-index:2;background:var(--bg);padding:8px 0;margin:-8px 0 2px}
+}
+@media (max-width:1023px){
+  .split-vis{position:sticky;top:47px;z-index:5;background:var(--bg);padding:8px 0 10px;margin-top:-8px;box-shadow:0 8px 10px -10px rgba(0,0,0,.25)}
+  .split-vis .legend{display:none}
+  .split-list{padding-top:12px}
+  #v-graph .graphbox{height:40vh;min-height:220px}
+  .seg{display:inline-flex}
+  #v-map .mapwrap{grid-template-columns:1fr;padding:8px}
+  #v-map .mapwrap[data-m="world"] .inset{display:none}
+  #v-map .mapwrap[data-m="korea"] #worldCell{display:none}
+  #v-map .mapwrap[data-m="korea"] .inset{width:auto;margin:0;display:flex;flex-direction:column;align-items:center}
+  #v-map .mapwrap[data-m="korea"] .inset svg{width:auto;height:min(40vh,320px)}
+  #v-map .mapwrap[data-m="korea"] .inset-title{display:none}
+  #v-map .zoomctl,#v-map .inset .zoomctl{top:auto;bottom:4px;flex-direction:row}
+  #v-map .zoomctl button{width:26px;height:26px;font-size:14px}
+}
+
 /* tag panel */
 .panel{margin-top:18px}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
@@ -238,28 +269,32 @@ footer .ft-note{font-size:12px;opacity:.85}
     <div id="todayList"></div>
   </section>
 
-  <section class="view" id="v-graph">
+  <section class="view split" id="v-graph">
+   <div class="split-vis">
     <div class="filters" id="graphFilters">
       <button class="chip on" data-g="all">전체</button>
       <button class="chip" data-g="r">지역만</button>
       <button class="chip" data-g="t">주제만</button>
     </div>
-    <div class="graphbox"><div id="graph"></div><div class="graphhint">점을 누르면 그 태그의 기사가 아래에 모여요</div></div>
+    <div class="graphbox"><div id="graph"></div><div class="graphhint">점을 누르면 그 태그의 기사가 모여요</div></div>
     <div class="legend">
       <span><i class="dot" style="background:#ffd166"></i>지역</span>
       <span><i class="dot" style="background:#8ecae6"></i>주제</span>
       <span>점 크기 = 기사 수 · 선 굵기 = 함께 나온 횟수</span>
     </div>
-    <div class="panel" id="tagPanel"></div>
+   </div>
+   <div class="split-list"><div class="panel" id="tagPanel" data-empty="그래프의 점을 누르면 그 태그의 기사가 여기에 모여요"></div></div>
   </section>
 
-  <section class="view" id="v-map">
+  <section class="view split" id="v-map">
+   <div class="split-vis">
     <div class="filters" id="mapFilters">
       <button class="chip on" data-d="all">전체 기간</button>
       <button class="chip" data-d="7">최근 7일</button>
       <button class="chip" data-d="1" id="mapLatest">오늘</button>
+      <span class="seg" id="mapSeg"><button class="on" data-m="world">세계</button><button data-m="korea">한반도</button></span>
     </div>
-    <div class="mapwrap" id="mapWrap">
+    <div class="mapwrap" id="mapWrap" data-m="world">
       <div class="mapcell" id="worldCell"></div>
       <div class="mapcell inset" id="koreaCell"><div class="inset-title">한반도 확대</div></div>
       <div class="maptip" id="mapTip"></div>
@@ -269,7 +304,8 @@ footer .ft-note{font-size:12px;opacity:.85}
       <span>퍼지는 고리 = 가장 최근 소식</span>
       <span>선 = 한 기사에 함께 나온 지역</span>
     </div>
-    <div class="panel" id="mapPanel"></div>
+   </div>
+   <div class="split-list"><div class="panel" id="mapPanel" data-empty="지도의 원을 누르면 그 지역의 기사가 여기에 모여요"></div></div>
   </section>
 
   <section class="view" id="v-archive">
@@ -386,6 +422,12 @@ function renderToday(){
 $("#prevDay").onclick = ()=>{ dayIdx++; renderToday(); scrollToMain(); };
 $("#nextDay").onclick = ()=>{ dayIdx--; renderToday(); scrollToMain(); };
 function scrollToMain(){ $("nav.tabs").scrollIntoView({behavior:"smooth"}); }
+/* 그래프·지도에서 고르면: 그 화면 맨 위로 올려서 그림과 목록 첫머리가 같이 보이게 */
+function scrollToSplit(viewId){
+  const sec = $("#"+viewId), navH = $("nav.tabs").offsetHeight;
+  const top = sec.getBoundingClientRect().top + scrollY - navH - 6;
+  if (Math.abs(scrollY - top) > 4) scrollTo({top, behavior:"smooth"});
+}
 
 /* ---------- 아카이브 ---------- */
 function renderCats(){
@@ -561,7 +603,7 @@ function openTag(tag, scroll=true, where){
       if (n && n.x!=null){ graph._setHi(n); graph.centerAt(n.x,n.y,600); graph.zoom(2.2,600); }
     }, 150);
   }
-  if (scroll) setTimeout(()=>$("#tagPanel").scrollIntoView({behavior:"smooth",block:"start"}), 200);
+  if (scroll) setTimeout(()=>scrollToSplit("v-graph"), 150);
 }
 
 /* ---------- 뉴스 지도 (도트맵 + 버블) ---------- */
@@ -720,7 +762,7 @@ function bindTarget(t){
   t.addEventListener("click", ()=>{
     if (MAP.dragged) return;
     if (name==="@한반도"){ const k=$("#koreaCell"); k.classList.remove("flash"); void k.offsetWidth; k.classList.add("flash");
-      if (innerWidth<=640) k.scrollIntoView({behavior:"smooth", block:"center"}); return; }
+      if (innerWidth<1024) setMapMode("korea"); return; }
     openPlace(name);
   });
 }
@@ -833,11 +875,20 @@ function makeZoom(svg, cell, maxK){
   apply();
 }
 
+/* 좁은 화면: 세계 / 한반도 바꿔 보기 */
+function setMapMode(m){
+  $("#mapWrap").dataset.m = m;
+  document.querySelectorAll("#mapSeg button").forEach(b=>b.classList.toggle("on", b.dataset.m===m));
+  requestAnimationFrame(placeLabels);
+}
+$("#mapSeg").addEventListener("click", e=>{ const b=e.target.closest("button"); if (b) setMapMode(b.dataset.m); });
+
 /* 지역 하나 열기: 지도에서 강조하고 아래에 기사 모으기 */
 function openPlace(name, scroll=true){
   showView("map");
   if (!MAP.dm){ MAP.pending = name; return; }
   MAP.sel = name;
+  if (GEO[name] && innerWidth<1024) setMapMode(inKorea(GEO[name]) ? "korea" : "world");
   document.querySelectorAll("#v-map .bub").forEach(b=>b.classList.toggle("on", b.dataset.name===name));
   document.querySelectorAll("#v-map .mlabel").forEach(b=>b.classList.toggle("on", b.dataset.name===name));
   const {list, rel} = tagList(name);
@@ -850,7 +901,7 @@ function openPlace(name, scroll=true){
   $("#closePlace").onclick = ()=>{ $("#mapPanel").innerHTML=""; MAP.sel=null; history.replaceState(null,"",location.pathname);
     document.querySelectorAll("#v-map .on").forEach(b=>b.classList.remove("on")); };
   history.replaceState(null,"","#place="+encodeURIComponent(name));
-  if (scroll) setTimeout(()=>$("#mapPanel").scrollIntoView({behavior:"smooth",block:"start"}), 150);
+  if (scroll) setTimeout(()=>scrollToSplit("v-map"), 120);
 }
 $("#mapFilters").addEventListener("click", e=>{
   const b=e.target.closest(".chip"); if(!b || !MAP.dm) return;
@@ -861,6 +912,7 @@ $("#mapFilters").addEventListener("click", e=>{
 /* ---------- 공통 이벤트 ---------- */
 function currentView(){ const s=document.querySelector(".view.on"); return s ? s.id.slice(2) : "today"; }
 function showView(v){
+  document.body.classList.toggle("wide", v==="graph" || v==="map");
   if (v==="map") initMap();
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
