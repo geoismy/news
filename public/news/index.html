@@ -68,7 +68,6 @@ a{color:inherit}
 .kim-hero.dark .kim-pic img{width:168px;height:168px;border-radius:50%;margin-bottom:20px;box-shadow:0 0 0 6px rgba(237,199,66,.18)}
 .bubble{position:relative;align-self:center;margin-bottom:40px;background:#fff;color:#2a2a2a;border-radius:16px;padding:10px 14px;
   font-size:14px;line-height:1.55;max-width:250px;box-shadow:0 6px 18px rgba(0,0,0,.12);transition:opacity .35s}
-.bubble::after{content:"";position:absolute;right:-8px;bottom:18px;border:8px solid transparent;border-left-color:#fff;border-right:0}
 .bubble.fade{opacity:0}
 .bubble a{color:#5b4bd6;font-weight:700;text-decoration:none}
 @media (max-width:640px){
@@ -88,6 +87,10 @@ dialog.letter::backdrop{background:rgba(7,8,15,.6)}
 .letter-paper p{margin:0 0 14px}
 .letter-face{width:72px;height:72px;border-radius:50%;float:right;margin:0 0 8px 12px;background:#edc742}
 .letter-paper .sign{text-align:right}
+.letter-paper .ps{font-family:"Noto Sans KR",sans-serif;font-size:13.5px;line-height:1.75;color:#5a5140;border-top:1px dashed #d9cfb4;padding-top:12px;margin-top:4px}
+.letter-paper .ps p{margin:0 0 8px}
+.letter-paper .ps .copy{font-size:12px;padding:3px 10px;margin-left:4px;background:#fff}
+.letter-paper .ps .ver{color:#9a8f76;font-size:12px}
 .letter-paper form{text-align:center;margin-top:6px}
 
 /* ---------- (예전) hero ----------
@@ -250,7 +253,8 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
   #v-map .zoomctl button{width:26px;height:26px;font-size:14px}
 }
 
-.krrow{display:flex;justify-content:center;border-top:1px solid #1d1f33;padding-top:10px}
+.krrow{display:block}
+.krrow .inset{width:100%;margin:0}
 .krrow .inset svg{height:300px;width:auto}
 .krlist{color:#c9c8dc;font-size:13px;min-width:0}
 .krlist-title{font-size:12px;color:#a6a3c9;margin:0 0 6px}
@@ -281,8 +285,8 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
 .mapwrap[data-m="world"] .krrow{display:none}
 .mapwrap[data-m="korea"] #worldCell{display:none}
 .mapwrap[data-m="korea"] .krrow{border:0;padding:0}
-#cardMap .krrow .inset svg{height:300px}
-#cardMap .inset .zoomctl{top:4px}
+#cardMap .krrow .inset svg{width:100%;height:auto}
+#cardMap .inset .zoomctl{top:4px;right:4px}
 .vis-seg{display:none}
 .back{appearance:none;border:0;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:700;padding:4px 0 10px;cursor:pointer}
 #tagView .panel{margin-top:0}
@@ -297,7 +301,7 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
   .vcard{display:none} .vcard.on{display:block}
   .vhead b{display:none}
   #cardGraph .graphbox{height:34vh;min-height:200px}
-  #cardMap .krrow .inset svg{height:min(34vh,280px)}
+  #cardMap .krrow .inset svg{width:100%;height:auto;max-height:min(40vh,340px)}
   #cardMap .krlist{display:none}
   #cardMap .zoomctl,#cardMap .inset .zoomctl{top:auto;bottom:4px;flex-direction:row}
   #cardMap .zoomctl button{width:26px;height:26px;font-size:14px}
@@ -363,7 +367,13 @@ footer .ft-note{font-size:12px;opacity:.85}
     <p>나는 이곳에서 늘 그렇듯 최선을 다하겠소.<br>
     당신은 그곳에서 오늘도 지리는 하루 보내시오! 🙃<br>
     당신의 몸과 마음. 우리 땅 지구의 평화를 빌며.</p>
-    <p class="sign">고맙소.<br><b>AI 김정호</b> 올림</p>
+    <p>고맙소.</p>
+    <p class="sign"><b>AI 김정호</b> 올림</p>
+    <div class="ps">
+      <p>덧)<br>'오늘도 지리는 소식'은 2026년 7월 2일에 텔레그램에서 시작되어 같은 해 11월 2일에 카카오톡 오픈채팅방으로 이사했음.</p>
+      <p>질문·제안·응원 geoismyfault@gmail.com <button type="button" class="copy" id="copyMail">복사하기</button></p>
+      <p class="ver" id="newsVer"></p>
+    </div>
     <form method="dialog"><button class="btn">닫기</button></form>
   </div>
 </dialog>
@@ -678,6 +688,15 @@ async function kimTalk(){
   $("#kimSay").textContent = k.say;
   if ($("#kimImg").getAttribute("src") !== k.img) $("#kimImg").src = k.img;
 }
+/* 뉴스 사이트 버전 (긴 주소 줄이기 /way 버전과는 별개) */
+const NEWS_VERSION = "v1.0(20261102)";
+$("#newsVer").textContent = NEWS_VERSION;
+$("#copyMail").onclick = async e=>{
+  const b = e.currentTarget;
+  try{ await navigator.clipboard.writeText("geoismyfault@gmail.com"); }
+  catch{ const t=document.createElement("textarea"); t.value="geoismyfault@gmail.com"; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  b.textContent = "복사했어요"; b.classList.add("done"); setTimeout(()=>{ b.textContent="복사하기"; b.classList.remove("done"); }, 1500);
+};
 const openLetter = () => { const d = $("#letter"); if (d.showModal) d.showModal(); else d.setAttribute("open",""); };
 $("#kimPic").onclick = openLetter;
 $("#letter").addEventListener("click", e=>{ if (e.target.id==="letter") e.target.close(); });
