@@ -48,23 +48,22 @@ body{background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,
 a{color:inherit}
 .wrap{max-width:880px;margin:0 auto;padding:0 16px}
 
-/* ---------- hero ---------- */
-.hero{position:relative;background:var(--graph-bg);height:clamp(380px,62vh,560px);overflow:hidden;color:#f1f0ff}
-#heroGraph{position:absolute;inset:0}
-.hero-shade{position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(7,8,15,.55) 0%,rgba(7,8,15,0) 28%,rgba(7,8,15,0) 52%,rgba(7,8,15,.94) 100%)}
-.hero-text{position:absolute;left:0;right:0;bottom:0;padding-bottom:26px;pointer-events:none}
-.hero h1{font-family:"Noto Serif KR",serif;font-weight:900;font-size:clamp(30px,7vw,52px);line-height:1.15;margin:6px 0 8px;letter-spacing:-1px;text-shadow:0 2px 18px rgba(0,0,0,.5)}
+/* ---------- hero ----------
+ * 위: 그래프만 / 아래: 제목 띠. 그래프가 글자 뒤로 지나가지 않게 나눔 */
+.hero{position:relative;background:var(--graph-bg);color:#f1f0ff;overflow:hidden}
+#heroGraph{position:relative;height:clamp(230px,40vh,360px)}
+.hero-shade{position:absolute;left:0;right:0;top:0;height:clamp(230px,40vh,360px);pointer-events:none;
+  background:linear-gradient(180deg,rgba(7,8,15,.5) 0%,rgba(7,8,15,0) 22%,rgba(7,8,15,0) 70%,rgba(7,8,15,1) 100%)}
+.hero-text{position:relative;padding:4px 0 22px;pointer-events:none}
+.hero h1{font-family:"Noto Serif KR",serif;font-weight:900;font-size:clamp(26px,5.6vw,40px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
+.hero h1 a{color:inherit;text-decoration:none;pointer-events:auto}
+.hero h1 a:hover{color:#fff;text-shadow:0 0 18px rgba(157,146,240,.6)}
 .stats{margin:0;font-size:15px;color:#c9c8dc}
 .stats b{color:#fff;font-weight:700}
-.spot{margin:10px 0 16px;font-size:14px;color:#a6a3c9;min-height:22px;transition:opacity .4s}
+.spot{margin:8px 0 0;font-size:14px;color:#a6a3c9;min-height:22px;transition:opacity .4s}
 .spot .tg{display:inline-block;padding:1px 10px;border-radius:999px;margin-left:4px;font-weight:500}
 .spot .tg.r{background:rgba(255,209,102,.16);color:#ffd166}
 .spot .tg.t{background:rgba(142,202,230,.16);color:#a9d8ee}
-.hero-actions{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto}
-.btn-hero{appearance:none;border:0;font:inherit;font-weight:700;font-size:15px;padding:10px 18px;border-radius:999px;cursor:pointer;background:#ffd166;color:#2a1f00}
-.btn-hero.ghost{background:rgba(255,255,255,.08);color:#ecebf5;border:1px solid rgba(255,255,255,.2)}
-.btn-hero:hover{filter:brightness(1.08)}
 
 nav.tabs{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
 nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto}
@@ -211,13 +210,9 @@ footer .ft-note{font-size:12px;opacity:.85}
   <div id="heroGraph"></div>
   <div class="hero-shade"></div>
   <div class="hero-text"><div class="wrap">
-    <h1>🌏 오늘도 지리는 소식</h1>
+    <h1><a href="/news/" id="homeLink">🌏 오늘도 지리는 소식</a></h1>
     <p class="stats" id="heroStats">불러오는 중…</p>
     <div class="spot" id="heroSpot"></div>
-    <div class="hero-actions">
-      <button class="btn-hero" id="ctaToday">오늘의 소식 보기</button>
-      <button class="btn-hero ghost" id="ctaGraph">그래프 뷰 펼치기 →</button>
-    </div>
   </div></div>
 </header>
 
@@ -513,8 +508,15 @@ function renderHero(){
   const tick = ()=>{ if(heroPaused || !order.length) return; const n=order[i++%order.length]; heroGraph._setHi(n); showSpot(n); };
   setTimeout(tick, 1600); setInterval(tick, 3200);
 }
-$("#ctaToday").onclick = ()=>{ showView("today"); scrollToMain(); };
-$("#ctaGraph").onclick = ()=>{ showView("graph"); scrollToMain(); };
+/* 제목 누르면 처음 화면으로 */
+$("#homeLink").onclick = e=>{
+  e.preventDefault();
+  ["#tagPanel","#mapPanel"].forEach(id=>{ const el=$(id); if (el) el.innerHTML=""; });
+  if (typeof MAP!=="undefined") MAP.sel = null;
+  history.replaceState(null,"",location.pathname);
+  dayIdx = 0; renderToday(); showView("today");
+  scrollTo({top:0, behavior:"smooth"});
+};
 
 /* ---------- 그래프 뷰 탭 ---------- */
 function buildGraph(){
