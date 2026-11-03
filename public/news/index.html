@@ -737,7 +737,8 @@ async function kimTalk(){
   const timer = setTimeout(()=>kimShow({...KIM_DEFAULT}), 2000);   // 시트가 늦으면 기본 문구
   let k = {...KIM_DEFAULT};
   try{
-    const rows = NewsData.parseCSV(await (await fetch(KIM_URL, {cache:"no-store"})).text());
+    /* 주소 끝에 매번 다른 꼬리표: 구글이 잠시 보관해 둔 옛 CSV 대신 최신본을 받으려고 */
+    const rows = NewsData.parseCSV(await (await fetch(KIM_URL + "&_=" + Date.now(), {cache:"no-store"})).text());
     const r = kimMatch(rows, today);
     if (r){ k.say = r.말; const g = String(r.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
   }catch(e){ console.warn(e); }
