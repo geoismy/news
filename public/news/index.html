@@ -14,7 +14,7 @@
 <meta property="og:url" content="https://geois.my/news/">
 <meta property="og:title" content="오늘도 지리는 소식">
 <meta property="og:description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
-<meta property="og:image" content="https://geois.my/news/og-news.png?v=2">
+<meta property="og:image" content="https://geois.my/news/og-news.png?v=3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="오늘도 지리는 소식 · geois.my/news">
@@ -65,7 +65,7 @@ a{color:inherit}
 .letter-link:hover{opacity:1}
 .kim{display:flex;align-items:flex-end;gap:6px;flex:none}
 .kim-pic{appearance:none;border:0;background:none;padding:0;cursor:pointer;display:block;line-height:0}
-.kim-pic img{width:200px;height:200px;display:block;transition:transform .25s}
+.kim-pic img{width:auto;height:200px;margin-top:10px;display:block;transition:transform .25s;filter:drop-shadow(0 6px 10px rgba(80,60,0,.18))}
 .kim-pic:hover img{transform:translateY(-4px) rotate(-1.5deg)}
 .kim-hero.dark .kim-pic img{width:168px;height:168px;border-radius:50%;margin-bottom:20px;box-shadow:0 0 0 6px rgba(237,199,66,.18)}
 .bubble{position:relative;align-self:center;margin-bottom:40px;background:#fff;color:#2a2a2a;border-radius:16px;padding:10px 14px;
@@ -76,7 +76,7 @@ a{color:inherit}
   .kim-in{min-height:0;flex-wrap:wrap;gap:0}
   .kim-copy{padding:20px 0 4px;width:100%}
   .kim{width:100%;justify-content:space-between}
-  .kim-pic img{width:124px;height:124px}
+  .kim-pic img{width:auto;height:150px}
   .kim-hero.dark .kim-pic img{width:104px;height:104px;margin-bottom:14px}
   .bubble{flex:1;max-width:none;margin-bottom:34px;font-size:13px}
   .letter-link{font-size:13px}
@@ -372,7 +372,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
     </div>
     <div class="kim">
       <div class="bubble" id="kimSay">오늘도 지리지리한 하루 보내시오! 🙃</div>
-      <button class="kim-pic" id="kimPic" type="button" aria-label="AI 김정호의 편지 읽기"><img src="/news/kimjeongho.webp" alt="AI 김정호" width="200" height="200" id="kimImg"></button>
+      <button class="kim-pic" id="kimPic" type="button" aria-label="AI 김정호의 편지 읽기"><img src="/news/kimjeongho.webp" alt="AI 김정호" width="151" height="200" id="kimImg"></button>
     </div>
   </div>
 </header>
@@ -387,7 +387,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
     당신은 그곳에서 오늘도 지리는 하루 보내시오! 🙃<br>
     당신의 몸과 마음. 우리 땅 지구의 평화를 빌며.</p>
     <p>고맙소.</p>
-    <div class="sign"><img src="/news/kimjeongho.webp" alt="" class="letter-face"><p><b>AI 김정호</b> 올림</p></div>
+    <div class="sign"><img src="/news/kim-face.webp" alt="" class="letter-face"><p><b>AI 김정호</b> 올림</p></div>
     <form method="dialog"><button class="btn">닫기</button></form>
   </div>
 </dialog>
