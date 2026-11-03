@@ -707,11 +707,11 @@ function makeGraph(el, hero){
  * 칸: 시작일 | 종료일 | 말 | 그림
  *   - 날짜는 2026-12-25 (그해만) 또는 12-25 (해마다). 종료일을 비우면 그날 하루.
  *   - 그림은 비우면 기본 그림. 이 저장소 public/news/kim/ 에 넣은 파일 이름(예: christmas.webp)이나 전체 주소. */
-const KIM_URL = "";
+const KIM_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6U4saJYXK6x-nMabUrrwouaPBSFBZUSwIjEaApMlS70C63wzH7gkRd3a50zPjA9YGzUo96Ak71MYN/pub?gid=916172972&single=true&output=csv";
 const KIM_DEFAULT = {say:"오늘도 지리지리한 하루 보내시오! 🙃", img:"/news/kimjeongho.webp"};
 function kimMatch(rows, today){
   const md = today.slice(5);
-  const norm = v => { v = String(v||"").trim(); const m = v.match(/^(\d{4})\D(\d{1,2})\D(\d{1,2})$/) || v.match(/^()(\d{1,2})\D(\d{1,2})$/);
+  const norm = v => { v = String(v||"").trim().replace(/[.\s]+$/, ""); const m = v.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})$/) || v.match(/^()(\d{1,2})\D+(\d{1,2})$/);
     return m ? (m[1] ? `${m[1]}-` : "") + `${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}` : ""; };
   for (const r of rows){
     const a = norm(r.시작일), b = norm(r.종료일) || a; if (!a || !r.말) continue;
