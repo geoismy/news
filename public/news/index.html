@@ -14,15 +14,15 @@
 <meta property="og:url" content="https://geois.my/news/">
 <meta property="og:title" content="오늘도 지리는 소식">
 <meta property="og:description" content="매일 아침, 세상을 지리로 읽는 뉴스 한 묶음">
-<meta property="og:image" content="https://geois.my/news/og-news.png">
+<meta property="og:image" content="https://geois.my/news/og-news.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="오늘도 지리는 소식 · geois.my/news">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#07080f">
+<meta name="theme-color" content="#edc742">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
-<script src="/news/lib/papaparse-5.4.1.min.js"></script>
+<script src="/news/lib/newsdata.js"></script>
 <script src="/news/lib/force-graph-1.43.5.min.js"></script>
 <script src="/news/geo.js"></script>
 <style>
@@ -327,6 +327,8 @@ nav.tabs .wrap > button:first-child{padding-left:0 !important}
 .datebar h2{flex:1;min-width:0;word-break:keep-all}
 .bubble{word-break:keep-all}
 
+.more{text-align:center;padding:18px 0}
+
 /* tag panel */
 .panel{margin-top:18px}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
@@ -498,25 +500,58 @@ function fmtDate(d){ const [y,m,dd]=d.split("-").map(Number); const w="일월화
 
 let DATA = [], DATES = [], dayIdx = 0, gFilter = "all", catFilter = "";
 let graph = null, heroGraph = null, heroPaused = false;
+/* SUMMARY: 처음부터 지금까지의 누적 요약(그래프·지도용). DATA: 지금 불러온 기사들(처음엔 최근 30일) */
+let SUMMARY = null, PIDX = null, TAGTYPE = new Map();
+const LOADED = {from:"", months:new Set(), all:false, pending:new Map()};
+const GRAPH_MAX = 150;                 // 그래프에 한 번에 그리는 태그 수 (기사 많은 순)
+const coord = n => { const p = PIDX && PIDX.get(n); return p ? p.at : null; };
+const inKorea = p => NewsData.inKorea(p);
+const KOREA_BOX = NewsData.KOREA_BOX;
+const tagType = t => TAGTYPE.get(t) || "t";
+
+async function fetchJSON(url){ const r = await fetch(url, {cache:"no-cache"}); if (!r.ok) throw new Error(url+" "+r.status); return r.json(); }
+function mergeArticles(list){
+  const ids = new Set(DATA.map(d=>d.id));
+  for (const a of list) if (!ids.has(a.id)) DATA.push(a);
+  DATA.sort((a,b)=>b.date.localeCompare(a.date) || a.id-b.id);
+}
+/* 지난 달 기사: 필요할 때만 받아 옴 */
+function loadMonth(ym){
+  if (LOADED.all || LOADED.months.has(ym)) return Promise.resolve();
+  if (LOADED.pending.has(ym)) return LOADED.pending.get(ym);
+  const job = fetchJSON(`/news/data/m/${ym}.json`).then(list=>{ mergeArticles(list); LOADED.months.add(ym); })
+    .catch(e=>console.warn(e)).finally(()=>LOADED.pending.delete(ym));
+  LOADED.pending.set(ym, job); return job;
+}
+async function loadAll(){
+  if (LOADED.all) return;
+  await Promise.all((SUMMARY.months||[]).map(loadMonth));
+  LOADED.all = true;
+}
+const haveDate = d => LOADED.all || d >= LOADED.from || LOADED.months.has(d.slice(0,7));
 
 /* ---------- 데이터 ---------- */
 async function load(){
-  let rows = [], failed = false;
+  const ND = NewsData;
+  let placeRows = [];
+  try{ placeRows = await fetchJSON("/news/places.json"); }catch(e){ console.warn(e); }
+  PIDX = ND.placeIndex(placeRows, GEO);
+  let failed = false;
+  /* 1) GitHub가 만들어 둔 요약 파일 (빠름) */
   try{
-    const res = await fetch(CSV_URL, {cache:"no-store"});
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    rows = Papa.parse(await res.text(), {header:true, skipEmptyLines:true}).data;
-    if (!rows.some(r => r && normDate(r.날짜))) throw new Error("no rows");
-  }catch(e){ console.warn(e); rows = []; failed = true; }
-  DATA = rows
-    .filter(r => r && normDate(r.날짜) && (r.제목 || r.요약))
-    .map((r,i) => ({
-      id:i, date:normDate(r.날짜), cat:String(r.분야||"").trim(),
-      title:String(r.제목||"").trim(), summary:String(r.요약||"").trim(),
-      regions:splitTags(r.지역태그), topics:splitTags(r.주제태그),
-      link:String(r.링크||"").trim(), source:String(r.매체||"").trim()
-    }));
-  DATES = [...new Set(DATA.map(d=>d.date))].sort().reverse();
+    const [sum, recent] = await Promise.all([fetchJSON("/news/data/summary.json"), fetchJSON("/news/data/recent.json")]);
+    SUMMARY = sum; DATA = recent; LOADED.from = sum.recentFrom || "";
+  }catch(e){
+    /* 2) 없으면 예전처럼 시트에서 직접 */
+    console.warn("요약 파일 대신 시트에서 직접 읽어요", e);
+    try{
+      const res = await fetch(CSV_URL, {cache:"no-store"});
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      DATA = ND.parseArticles(ND.parseCSV(await res.text()), PIDX);
+      if (!DATA.length) throw new Error("no rows");
+      SUMMARY = ND.summarize(DATA, PIDX); LOADED.all = true;
+    }catch(e2){ console.warn(e2); failed = true; }
+  }
   if (failed){
     $("#notice").innerHTML = `<div class="notice">지금 소식을 불러오지 못했어요. 잠시 후 새로고침해 주세요.</div>`;
     $("#heroStats").textContent = "소식을 불러오지 못했어요";
@@ -525,6 +560,8 @@ async function load(){
     $("#archiveList").innerHTML = `<div class="empty">소식을 불러오지 못했어요</div>`;
     return;
   }
+  TAGTYPE = new Map(SUMMARY.tags.map(t=>[t[0], t[1]]));
+  DATES = SUMMARY.dates.map(d=>d[0]);
   renderToday(); renderCats(); renderArchive(); renderHero(); buildGraph();
   const h = decodeURIComponent(location.hash.slice(1));
   document.body.classList.add("wide");
@@ -550,9 +587,13 @@ function card(d, showDate=false){
 }
 
 /* ---------- 오늘의 소식 ---------- */
-function renderToday(){
+async function renderToday(){
   if (!DATES.length){ $("#todayTitle").textContent="아직 소식이 없어요"; return; }
   const date = DATES[dayIdx];
+  if (!haveDate(date)){
+    $("#todayTitle").innerHTML = `${dayTitle(date)}`; $("#todayList").innerHTML = `<div class="empty">불러오는 중…</div>`;
+    await loadMonth(date.slice(0,7)); if (DATES[dayIdx] !== date) return;
+  }
   const items = DATA.filter(d=>d.date===date);
   $("#todayTitle").innerHTML = `${dayTitle(date)} <span class="count">${items.length}건</span>`;
   $("#todayList").innerHTML = items.map(d=>card(d)).join("");
@@ -571,7 +612,7 @@ function scrollToSplit(viewId){
 
 /* ---------- 아카이브 ---------- */
 function renderCats(){
-  const cats = Object.keys(EMOJI).filter(c=>DATA.some(d=>d.cat===c));
+  const cats = Object.keys(EMOJI).filter(c=>SUMMARY.cats[c]);
   $("#catFilters").innerHTML = `<button class="chip on" data-c="">전체</button>` +
     cats.map(c=>`<button class="chip" data-c="${esc(c)}">${EMOJI[c]} ${esc(c)}</button>`).join("");
 }
@@ -591,36 +632,30 @@ function renderArchive(){
       <small>${[...d.regions,...d.topics].map(t=>"#"+esc(t)).join(" ")} · ${esc(d.source)}</small></div>
       <a class="go" href="${esc(d.link)}" target="_blank" rel="noopener">보기 →</a></div>`;
   }
+  if (!LOADED.all) html += `<div class="more"><button class="btn" id="moreArchive">지난 소식 모두 불러오기 (전체 ${SUMMARY.total}건)</button></div>`;
   $("#archiveList").innerHTML = html;
+  const m = $("#moreArchive"); if (m) m.onclick = async ()=>{ m.disabled = true; m.textContent = "불러오는 중…"; await loadAll(); renderArchive(); };
 }
-$("#q").addEventListener("input", renderArchive);
+/* 찾기·분야 고르기는 지난 소식까지 모두에서 */
+async function archiveAll(){ if (!LOADED.all){ $("#archiveList").innerHTML = `<div class="empty">지난 소식까지 불러오는 중…</div>`; await loadAll(); } renderArchive(); }
+$("#q").addEventListener("input", ()=>{ if (LOADED.all) renderArchive(); else archiveAll(); });
 $("#catFilters").addEventListener("click", e=>{
   const b=e.target.closest(".chip"); if(!b) return;
-  catFilter=b.dataset.c; document.querySelectorAll("#catFilters .chip").forEach(x=>x.classList.toggle("on",x===b)); renderArchive();
+  catFilter=b.dataset.c; document.querySelectorAll("#catFilters .chip").forEach(x=>x.classList.toggle("on",x===b)); archiveAll();
 });
 
 /* ---------- 그래프 공통 ---------- */
 function graphData(filter){
-  const nodes = new Map(), links = new Map();
-  for (const d of DATA){
-    const tags = [
-      ...(filter!=="t" ? d.regions.map(t=>({id:t,type:"r"})) : []),
-      ...(filter!=="r" ? d.topics.map(t=>({id:t,type:"t"})) : [])
-    ];
-    for (const t of tags){
-      const key = t.type+":"+t.id;
-      if (!nodes.has(key)) nodes.set(key,{id:key,name:t.id,type:t.type,count:0});
-      nodes.get(key).count++;
-    }
-    for (let i=0;i<tags.length;i++) for (let j=i+1;j<tags.length;j++){
-      const a=tags[i].type+":"+tags[i].id, b=tags[j].type+":"+tags[j].id;
-      if (a===b) continue;
-      const k = a<b ? a+"|"+b : b+"|"+a;
-      if (!links.has(k)) links.set(k,{source:a<b?a:b,target:a<b?b:a,w:0});
-      links.get(k).w++;
-    }
-  }
-  return {nodes:[...nodes.values()], links:[...links.values()]};
+  /* 누적 요약에서 기사 많은 태그부터 GRAPH_MAX개 */
+  const keep = new Map();
+  SUMMARY.tags.forEach((t,i)=>{
+    if (keep.size >= GRAPH_MAX) return;
+    if (filter!=="all" && t[1]!==filter) return;
+    keep.set(i, {id:t[1]+":"+t[0], name:t[0], type:t[1], count:t[2]});
+  });
+  const links = SUMMARY.tagPairs.filter(([a,b])=>keep.has(a)&&keep.has(b))
+    .map(([a,b,w])=>({source:keep.get(a).id, target:keep.get(b).id, w}));
+  return {nodes:[...keep.values()], links};
 }
 const nodeR = n => Math.sqrt(2+n.count*2)*3;
 
@@ -689,7 +724,7 @@ async function kimTalk(){
   let k = {...KIM_DEFAULT};
   if (KIM_URL){
     try{
-      const rows = Papa.parse(await (await fetch(KIM_URL, {cache:"no-store"})).text(), {header:true, skipEmptyLines:true}).data;
+      const rows = NewsData.parseCSV(await (await fetch(KIM_URL, {cache:"no-store"})).text());
       const r = kimMatch(rows, kstToday());
       if (r){ k.say = r.말; const g = String(r.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
     }catch(e){ console.warn(e); }
@@ -719,8 +754,8 @@ function showSpot(n){
   $("#heroSpot").innerHTML = `지금 비추는 태그<span class="tg ${n.type}">#${esc(n.name)}</span> · 기사 ${arts}건${rel?` · ${rel}와 연결`:""}`;
 }
 function renderHero(){
-  const regions = new Set(DATA.flatMap(d=>d.regions)), topics = new Set(DATA.flatMap(d=>d.topics));
-  $("#heroStats").innerHTML = `지금까지 <b>${DATA.length}</b>개의 소식이 <b>${regions.size}</b>곳의 지역과 <b>${topics.size}</b>개의 주제로 이어져 있어요`;
+  const regions = {size:SUMMARY.tags.filter(t=>t[1]==="r").length}, topics = {size:SUMMARY.tags.filter(t=>t[1]==="t").length};
+  $("#heroStats").innerHTML = `지금까지 <b>${SUMMARY.total}</b>개의 소식이 <b>${regions.size}</b>곳의 지역과 <b>${topics.size}</b>개의 주제로 이어져 있어요`;
   kimTalk();
   const el = $("#heroGraph"); if (!el) return;
   if (!window.ForceGraph) return;
@@ -756,7 +791,7 @@ $("#graphFilters").addEventListener("click", e=>{
 
 /* ---------- 태그 모아보기 ---------- */
 function tagList(tag){
-  const list = DATA.filter(d=>d.regions.includes(tag)||d.topics.includes(tag)).sort((a,b)=>b.date.localeCompare(a.date));
+  const list = DATA.filter(d=>d.regions.includes(tag)||d.topics.includes(tag)||(d.places||[]).includes(tag)).sort((a,b)=>b.date.localeCompare(a.date));
   const co = {};
   list.forEach(d=>[...d.regions,...d.topics].forEach(t=>{ if(t!==tag) co[t]=(co[t]||0)+1; }));
   return {list, rel:Object.entries(co).sort((a,b)=>b[1]-a[1]).slice(0,8)};
@@ -764,7 +799,7 @@ function tagList(tag){
 function tagPanelHTML(tag, list, rel, closeId, extra=""){
   return `<div class="panel-head"><h2>#${esc(tag)} <span class="count">${list.length}건</span></h2>
       <div class="acts">${extra}<button class="btn" id="${closeId}">닫기</button></div></div>
-    ${rel.length?`<div class="related">함께 나온 태그 ${rel.map(([t])=>`<button class="tag ${DATA.some(d=>d.regions.includes(t))?"r":"t"}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`:""}
+    ${rel.length?`<div class="related">함께 나온 태그 ${rel.map(([t])=>`<button class="tag ${tagType(t)}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("")}</div>`:""}
     ${list.map(d=>card(d, true)).join("")}`;
 }
 /* 뉴스 지도에서 지역을 누르면 지도 아래에, 그 밖에는 그래프 뷰에 모아 보여 줌 */
@@ -772,10 +807,10 @@ function tagPanelHTML(tag, list, rel, closeId, extra=""){
 function openTag(tag, scroll=true){
   showView("today");
   const {list, rel} = tagList(tag);
-  const isR = DATA.some(d=>d.regions.includes(tag));
+  const isR = tagType(tag)==="r" || !!coord(tag);
   let osm = "";
-  if (GEO[tag]){
-    const [lat,lng] = GEO[tag], z = inKorea(GEO[tag]) && !["한국","대한민국","남한","북한"].includes(tag) ? 11 : 5;
+  if (coord(tag)){
+    const [lat,lng] = coord(tag), z = inKorea(coord(tag)) && !["한국","대한민국","남한","북한"].includes(tag) ? 11 : 5;
     osm = `<a class="osm" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${z}/${lat}/${lng}" target="_blank" rel="noopener">지도에서 보기 ↗</a>`;
   }
   $("#tagPanel").innerHTML = tagPanelHTML(tag, list, rel, "closeTag", osm);
@@ -792,13 +827,18 @@ function openTag(tag, scroll=true){
   }
   /* 지도 */
   MAP.sel = tag;
-  if (GEO[tag]) setMapMode(inKorea(GEO[tag]) ? "korea" : "world");
+  if (coord(tag)) setMapMode(inKorea(coord(tag)) ? "korea" : "world");
+  /* 지난 소식까지 모두 받아 와서 목록 다시 (처음엔 최근 30일만 있음) */
+  OPEN_TAG = tag;
+  if (!LOADED.all) loadAll().then(()=>{ if (OPEN_TAG===tag && !$("#tagView").hidden){ const r = tagList(tag); $("#tagPanel").innerHTML = tagPanelHTML(tag, r.list, r.rel, "closeTag", osm); $("#closeTag").onclick = backToDay; } });
   markMapSel();
   if (typeof setVisMini==="function") setVisMini(false);
   if (scroll) setTimeout(scrollToHome, 100);
 }
 const openPlace = openTag;
+let OPEN_TAG = null;
 function backToDay(){
+  OPEN_TAG = null;
   $("#tagView").hidden = true; $("#dayView").hidden = false; $("#tagPanel").innerHTML = "";
   MAP.sel = null; markMapSel(); graph && graph._setHi(null);
   history.replaceState(null,"",location.pathname);
@@ -856,8 +896,6 @@ $("#visSeg").addEventListener("click", e=>{
 /* ---------- 뉴스 지도 (도트맵 + 버블) ---------- */
 const MAP = {dm:null, loading:null, days:"all", pending:null, sel:null};
 const SVGNS = "http://www.w3.org/2000/svg";
-const KOREA_BOX = {lat0:33, lat1:43, lng0:124, lng1:132.2}; // 독도(동경 131.87°)까지
-const inKorea = ([lat,lng]) => lat>=KOREA_BOX.lat0 && lat<=KOREA_BOX.lat1 && lng>=KOREA_BOX.lng0 && lng<=KOREA_BOX.lng1;
 /* Natural Earth 투영 (d3-geo와 같은 식, 도트 생성 때 쓴 값으로 맞춤) */
 function projW([lat,lng]){
   const W = MAP.dm.world;
@@ -914,23 +952,30 @@ function buildMap(){
   new ResizeObserver(()=>placeLabels()).observe($("#mapWrap"));
 }
 
-/* 기간에 맞는 지역별 기사 수, 함께 나온 쌍 */
+/* 기간에 맞는 지명별 기사 수, 함께 나온 쌍. 전체 기간은 누적 요약, 7일·오늘은 최근 기사로 */
 function mapData(){
   const latest = DATES[0];
-  const from = MAP.days==="all" ? "" : MAP.days==="1" ? latest : kstToday(6);
-  const cnt = new Map(), recent = new Set(), pairs = new Map(), krArts = new Set();
-  for (const d of DATA){
-    if (from && d.date < from) continue;
-    const rs = [...new Set(d.regions)].filter(r=>GEO[r]);
-    rs.forEach(r=>{ cnt.set(r,(cnt.get(r)||0)+1); if (d.date===latest) recent.add(r); if (inKorea(GEO[r])) krArts.add(d.id); });
-    /* 세계 지도의 선: 한반도 안 지명은 "한반도" 하나로 묶어서 */
-    const ws = [...new Set(rs.map(r=>inKorea(GEO[r]) ? "@한반도" : r))];
-    for (let i=0;i<ws.length;i++) for (let j=i+1;j<ws.length;j++){
-      const k=[ws[i],ws[j]].sort().join("|"); pairs.set(k,(pairs.get(k)||0)+1);
+  const recent = new Set(DATA.filter(d=>d.date===latest).flatMap(d=>d.places||[]));
+  const grp = n => inKorea(coord(n)) ? "@한반도" : n;     // 세계 지도의 선: 한반도 안 지명은 하나로 묶어서
+  const pairs = new Map(), addPair = (a,b,w) => { a = grp(a); b = grp(b); if (a===b) return; const k = [a,b].sort().join("|"); pairs.set(k,(pairs.get(k)||0)+w); };
+  let pts, krCount;
+  if (MAP.days==="all"){
+    pts = SUMMARY.places.filter(([n])=>coord(n)).map(([name,c])=>({name, c, recent:recent.has(name), kr:inKorea(coord(name))}));
+    SUMMARY.placePairs.forEach(([a,b,w])=>{ const A = SUMMARY.places[a][0], B = SUMMARY.places[b][0]; if (coord(A)&&coord(B)) addPair(A,B,w); });
+    krCount = SUMMARY.krArts;
+  } else {
+    const from = MAP.days==="1" ? latest : kstToday(6);
+    const cnt = new Map(), krArts = new Set();
+    for (const d of DATA){
+      if (d.date < from) continue;
+      const rs = (d.places||[]).filter(coord);
+      rs.forEach(r=>{ cnt.set(r,(cnt.get(r)||0)+1); if (inKorea(coord(r))) krArts.add(d.id); });
+      for (let i=0;i<rs.length;i++) for (let j=i+1;j<rs.length;j++) addPair(rs[i], rs[j], 1);
     }
+    pts = [...cnt].map(([name,c])=>({name, c, recent:recent.has(name), kr:inKorea(coord(name))}));
+    krCount = krArts.size;
   }
-  const pts = [...cnt].map(([name,c])=>({name, c, recent:recent.has(name), kr:inKorea(GEO[name])}));
-  return {pts, pairs, krCount:krArts.size, krRecent:pts.some(p=>p.kr&&p.recent)};
+  return {pts, pairs, krCount, krRecent:pts.some(p=>p.kr&&p.recent)};
 }
 
 function drawMapData(){
@@ -940,7 +985,7 @@ function drawMapData(){
   wb.innerHTML = ""; wa.innerHTML = ""; kb.innerHTML = "";
   const rW = c => 3.5 + Math.sqrt(c)*4, rK = c => 4.5 + Math.sqrt(c)*4.2;
   const krCenter = projW([37.8, 127.6]);
-  const posW = n => n==="@한반도" ? krCenter : projW(GEO[n]);
+  const posW = n => n==="@한반도" ? krCenter : projW(coord(n));
   /* 선 */
   for (const [k,w] of pairs){
     const [a,b] = k.split("|"), [x1,y1] = posW(a);
@@ -963,9 +1008,9 @@ function drawMapData(){
     return c;
   };
   const world = pts.filter(p=>!p.kr).sort((a,b)=>b.c-a.c);
-  world.forEach(p=>{ const [x,y] = projW(GEO[p.name]); bub(wb, x, y, rW(p.c), p, ""); });
+  world.forEach(p=>{ const [x,y] = projW(coord(p.name)); bub(wb, x, y, rW(p.c), p, ""); });
   if (krCount){ const [x,y] = krCenter; bub(wb, x, y, rW(krCount), {name:"@한반도", c:krCount, recent:krRecent}, "kr"); }
-  pts.filter(p=>p.kr).sort((a,b)=>b.c-a.c).forEach(p=>{ const [x,y] = projK(GEO[p.name]); bub(kb, x, y, rK(p.c), p, ""); });
+  pts.filter(p=>p.kr).sort((a,b)=>b.c-a.c).forEach(p=>{ const [x,y] = projK(coord(p.name)); bub(kb, x, y, rK(p.c), p, ""); });
   $("#koreaCell").style.opacity = krCount ? 1 : .5;
   bindBubbles();
   placeLabels();
@@ -1008,10 +1053,10 @@ function placeLabels(){
   const kr = $("#worldBubs .bub.kr");
   if (kr) world.push({name:"@한반도", label:"한반도", c:+kr.dataset.c, r:rW(+kr.dataset.c), recent:kr.classList.contains("recent"), at:[37.8,127.6]});
   const wide = $("#worldCell").clientWidth > 520;
-  doCell("worldCell","worldSvg","worldLabels", world.sort(order), p=>projW(p.at||GEO[p.name]), wide?18:9);
+  doCell("worldCell","worldSvg","worldLabels", world.sort(order), p=>projW(p.at||coord(p.name)), wide?18:9);
   /* 한반도 지도: 누구나 아는 이름(북한·한국, 울릉도·독도)은 이름표 생략 */
   const obvious = ["북한","한국","대한민국","남한","울릉도","울릉","독도"];
-  doCell("koreaCell","koreaSvg","koreaLabels", MAP.pts.filter(p=>p.kr && !obvious.includes(p.name)).map(p=>({...p, r:rK(p.c)})).sort(order), p=>projK(p.at||GEO[p.name]), 14);
+  doCell("koreaCell","koreaSvg","koreaLabels", MAP.pts.filter(p=>p.kr && !obvious.includes(p.name)).map(p=>({...p, r:rK(p.c)})).sort(order), p=>projK(p.at||coord(p.name)), 14);
   renderKrList(); markMapSel();
   $("#worldLabels").querySelectorAll(".mlabel").forEach(bindTarget);
   $("#koreaLabels").querySelectorAll(".mlabel").forEach(bindTarget);
@@ -1034,16 +1079,17 @@ function bindBubbles(){ document.querySelectorAll("#cardMap .bub").forEach(bindT
 function hoverPlace(name, e){
   const tip = $("#mapTip"), arcs = $("#worldArcs");
   if (!name){ tip.style.opacity = 0; arcs.classList.remove("dim"); arcs.querySelectorAll(".arc.on").forEach(a=>a.classList.remove("on")); return; }
-  const key = (name!=="@한반도" && GEO[name] && inKorea(GEO[name])) ? "@한반도" : name;
+  const key = (name!=="@한반도" && coord(name) && inKorea(coord(name))) ? "@한반도" : name;
   arcs.querySelectorAll(".arc").forEach(a=>a.classList.toggle("on", a.dataset.a===key || a.dataset.b===key));
   arcs.classList.toggle("dim", !!arcs.querySelector(".arc.on"));
   if (name==="@한반도"){
     const n = $("#worldBubs .bub.kr").dataset.c;
     tip.innerHTML = `<b>한반도</b> · 기사 ${n}건<br><span style="color:#9a99ad">오른쪽 확대 지도에서 지역별로 볼 수 있어요</span>`;
   } else {
-    const {list, rel} = tagList(name);
+    const {rel} = tagList(name);
     const top = rel.slice(0,3).map(([t])=>"#"+esc(t)).join(" ");
-    tip.innerHTML = `<b>#${esc(name)}</b> · 기사 ${list.length}건${top?`<br><span style="color:#9a99ad">${top}</span>`:""}`;
+    const b = document.querySelector(`#cardMap .bub[data-name="${CSS.escape(name)}"]`);
+    tip.innerHTML = `<b>#${esc(name)}</b> · 기사 ${b ? b.dataset.c : ""}건${top?`<br><span style="color:#9a99ad">${top}</span>`:""}`;
   }
   tip.style.opacity = 1; moveTip(e);
 }
