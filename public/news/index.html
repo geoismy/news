@@ -70,7 +70,7 @@ a{color:inherit}
 .kim-hero.dark .kim-pic img{width:168px;height:168px;border-radius:50%;margin-bottom:20px;box-shadow:0 0 0 6px rgba(237,199,66,.18)}
 .bubble{position:relative;align-self:center;margin-bottom:40px;background:#fff;color:#2a2a2a;border-radius:16px;padding:10px 14px;
   font-size:14px;line-height:1.55;max-width:250px;box-shadow:0 6px 18px rgba(0,0,0,.12);transition:opacity .35s}
-.bubble.fade{opacity:0}
+.bubble.fade,.bubble.wait{opacity:0}
 .bubble a{color:#5b4bd6;font-weight:700;text-decoration:none}
 @media (max-width:640px){
   .kim-in{min-height:0;flex-wrap:wrap;gap:0}
@@ -371,7 +371,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
       <p class="stats" id="heroStats">불러오는 중…</p>
     </div>
     <div class="kim">
-      <div class="bubble" id="kimSay">오늘도 지리지리한 하루 보내시오! 🙃</div>
+      <div class="bubble wait" id="kimSay" aria-live="polite"></div>
       <button class="kim-pic" id="kimPic" type="button" aria-label="AI 김정호의 편지 읽기"><img src="/news/kimjeongho.webp" alt="AI 김정호" width="151" height="200" id="kimImg"></button>
     </div>
   </div>
@@ -720,27 +720,35 @@ function kimMatch(rows, today){
   }
   return null;
 }
-async function kimTalk(){
-  let k = {...KIM_DEFAULT};
-  if (KIM_URL){
-    try{
-      const rows = NewsData.parseCSV(await (await fetch(KIM_URL, {cache:"no-store"})).text());
-      const r = kimMatch(rows, kstToday());
-      if (r){ k.say = r.말; const g = String(r.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
-    }catch(e){ console.warn(e); }
-  }
-  $("#kimSay").textContent = k.say;
+/* 말풍선은 처음엔 비워 두고, 알맞은 문구가 정해지면 한 번만 나타나게 (기본 문구가 먼저 보였다 바뀌는 깜빡임 방지) */
+function kimShow(k){
+  const b = $("#kimSay");
+  if (b.dataset.done) return;
+  b.dataset.done = "1";
+  b.textContent = k.say;
   if ($("#kimImg").getAttribute("src") !== k.img) $("#kimImg").src = k.img;
+  requestAnimationFrame(()=>b.classList.remove("wait"));
 }
-/* 뉴스 사이트 버전 (긴 주소 줄이기 /way 버전과는 별개) */
-const NEWS_VERSION = "v1.0(20261102)";
-$("#newsVer").textContent = NEWS_VERSION;
-$("#copyMail").onclick = async e=>{
-  const b = e.currentTarget;
-  try{ await navigator.clipboard.writeText("geoismyfault@gmail.com"); }
-  catch{ const t=document.createElement("textarea"); t.value="geoismyfault@gmail.com"; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
-  b.textContent = "복사했어요"; b.classList.add("done"); setTimeout(()=>{ b.textContent="복사하기"; b.classList.remove("done"); }, 1500);
-};
+async function kimTalk(){
+  const today = kstToday(), CK = "kim:" + today;
+  /* 오늘 이미 읽었으면 바로 */
+  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c) kimShow(c); } catch(e){}
+  if (!KIM_URL){ kimShow({...KIM_DEFAULT}); return; }
+  const timer = setTimeout(()=>kimShow({...KIM_DEFAULT}), 2000);   // 시트가 늦으면 기본 문구
+  let k = {...KIM_DEFAULT};
+  try{
+    const rows = NewsData.parseCSV(await (await fetch(KIM_URL, {cache:"no-store"})).text());
+    const r = kimMatch(rows, today);
+    if (r){ k.say = r.말; const g = String(r.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
+  }catch(e){ console.warn(e); }
+  clearTimeout(timer);
+  try { localStorage.setItem(CK, JSON.stringify(k)); } catch(e){}
+  const b = $("#kimSay");
+  if (b.dataset.done && b.textContent !== k.say){        // 기억해 둔 문구와 달라졌으면(시트를 고친 경우) 살짝 바꿈
+    b.classList.add("fade");
+    setTimeout(()=>{ b.textContent = k.say; if ($("#kimImg").getAttribute("src") !== k.img) $("#kimImg").src = k.img; b.classList.remove("fade"); }, 300);
+  } else kimShow(k);
+}
 const openLetter = () => { const d = $("#letter"); if (d.showModal) d.showModal(); else d.setAttribute("open",""); };
 $("#kimPic").onclick = openLetter;
 $("#letter").addEventListener("click", e=>{ if (e.target.id==="letter") e.target.close(); });
@@ -756,7 +764,6 @@ function showSpot(n){
 function renderHero(){
   const regions = {size:SUMMARY.tags.filter(t=>t[1]==="r").length}, topics = {size:SUMMARY.tags.filter(t=>t[1]==="t").length};
   $("#heroStats").innerHTML = `지금까지 <b>${SUMMARY.total}</b>개의 소식이 <b>${regions.size}</b>곳의 지역과 <b>${topics.size}</b>개의 주제로 이어져 있어요`;
-  kimTalk();
   const el = $("#heroGraph"); if (!el) return;
   if (!window.ForceGraph) return;
   heroGraph = makeGraph(el, true);
@@ -1226,6 +1233,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 
+kimTalk();   // 기사 데이터와 따로, 바로 시작
 load();
 </script>
 </body>
