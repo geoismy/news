@@ -87,7 +87,7 @@ dialog.letter::backdrop{background:rgba(7,8,15,.6)}
 .letter-paper{background:#fbf6e8;color:#2b2416;border-radius:6px;padding:28px 28px 20px;font-family:"Noto Serif KR",serif;font-size:15.5px;line-height:1.9;
   box-shadow:0 20px 50px rgba(0,0,0,.35);border-top:6px solid #c0392b;position:relative}
 .letter-paper p{margin:0 0 14px}
-.letter-face{width:72px;height:72px;border-radius:50%;float:right;margin:0 0 8px 12px;background:#edc742}
+.letter-face{width:72px;height:72px;border-radius:50%;display:block;margin:0 0 6px auto;background:#edc742}
 .letter-paper .sign{text-align:right}
 .letter-paper .ps{font-family:"Noto Sans KR",sans-serif;font-size:13.5px;line-height:1.75;color:#5a5140;border-top:1px dashed #d9cfb4;padding-top:12px;margin-top:4px}
 .letter-paper .ps p{margin:0 0 8px}
@@ -267,6 +267,7 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
 .krlist li b{color:#7c7a96;font-weight:500}
 .krlist-empty{color:#7c7a96}
 .mlabel.isle{font-size:10px;color:#a9a6d8;font-weight:500}
+.isle-mark{fill:#b7b2f0;fill-opacity:.95;pointer-events:none}
 
 /* ── 한 화면: 왼쪽 소식, 오른쪽 위 그래프 · 아래 지도 */
 body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-width:1080px}
@@ -376,7 +377,6 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
 
 <dialog class="letter" id="letter">
   <div class="letter-paper">
-    <img src="/news/kimjeongho.webp" alt="" class="letter-face">
     <p>나는 AI 김정호🤖요. 매일 지리지리한 소식을 전하겠소.</p>
     <p>세상 모든 일은 공간 위에 펼쳐지는 지리지리한 이야기라네. 하여 나도 어떤 이야기를 전할지 알 수 없소.<br>
     때로는 놓치는 소식도 있을 것이고, 당신과 결이 다른 소식도 있을 것이오. 이해해 주시오.</p>
@@ -385,7 +385,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
     당신은 그곳에서 오늘도 지리는 하루 보내시오! 🙃<br>
     당신의 몸과 마음. 우리 땅 지구의 평화를 빌며.</p>
     <p>고맙소.</p>
-    <p class="sign"><b>AI 김정호</b> 올림</p>
+    <div class="sign"><img src="/news/kimjeongho.webp" alt="" class="letter-face"><p><b>AI 김정호</b> 올림</p></div>
     <form method="dialog"><button class="btn">닫기</button></form>
   </div>
 </dialog>
@@ -856,7 +856,7 @@ $("#visSeg").addEventListener("click", e=>{
 /* ---------- 뉴스 지도 (도트맵 + 버블) ---------- */
 const MAP = {dm:null, loading:null, days:"all", pending:null, sel:null};
 const SVGNS = "http://www.w3.org/2000/svg";
-const KOREA_BOX = {lat0:33, lat1:43, lng0:124, lng1:131.5};
+const KOREA_BOX = {lat0:33, lat1:43, lng0:124, lng1:132.2}; // 독도(동경 131.87°)까지
 const inKorea = ([lat,lng]) => lat>=KOREA_BOX.lat0 && lat<=KOREA_BOX.lat1 && lng>=KOREA_BOX.lng0 && lng<=KOREA_BOX.lng1;
 /* Natural Earth 투영 (d3-geo와 같은 식, 도트 생성 때 쓴 값으로 맞춤) */
 function projW([lat,lng]){
@@ -898,13 +898,11 @@ function buildMap(){
   for (let i=0;i<K.dots.length;i+=3) (K.dots[i+2] ? kr : other).push(K.dots[i], K.dots[i+1]);
   el("path", {class:"kland", d:dotPath(other,2), "stroke-width":K.r*2, "data-w0":K.r*2}, ks);
   el("path", {class:"kland kr", d:dotPath(kr,2), "stroke-width":K.r*2, "data-w0":K.r*2}, ks);
-  /* 울릉도·독도: 지도 자료에서 너무 작아 점이 빠지므로 직접 찍음 */
-  const isle = [];
-  for (const [lat,lng,n] of [[37.50,130.86,3],[37.24,131.87,2]]){
+  /* 울릉도·독도: 시군구는 아니지만 늘 보이게 따로 점을 찍음 (소식이 있으면 그 위에 원이 더 찍혀요) */
+  for (const [lat,lng,r] of [[37.50,130.86,3.2],[37.24,131.87,2.6]]){
     const [x,y] = projK([lat,lng]);
-    for (let i=0;i<n;i++) isle.push(+(x + (i%2? 2.6:-1)*(n>2?1:.6)).toFixed(1), +(y + (i>1?2.4:0)).toFixed(1));
+    el("circle", {class:"isle-mark", cx:x, cy:y, r, "data-r0":r}, ks);
   }
-  el("path", {class:"kland kr isle", d:dotPath(isle,2), "stroke-width":K.r*2, "data-w0":K.r*2}, ks);
   el("g", {id:"koreaBubs"}, ks);
   $("#koreaCell").appendChild(ks);
   const kl = document.createElement("div"); kl.className = "mlabels"; kl.id = "koreaLabels"; $("#koreaCell").appendChild(kl);
