@@ -24,6 +24,7 @@
 <link rel="preload" href="/news/data/recent.json" as="fetch" crossorigin>
 <link rel="preload" href="/news/data/summary.json" as="fetch" crossorigin>
 <link rel="preload" href="/news/kimjeongho.webp" as="image">
+<link rel="preload" href="/news/data/kim.json" as="fetch" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet"></noscript>
@@ -752,7 +753,8 @@ function makeGraph(el, hero){
 }
 
 /* ---------- AI 김정호: 평소엔 한 줄, 특별한 날엔 다른 말·그림 ----------
- * 구글 시트에 "김정호" 탭을 만들고 웹에 게시(CSV)한 주소를 KIM_URL에 넣으면 시트만 고쳐서 바꿀 수 있어요.
+ * 구글 시트 "김정호" 탭(웹에 게시한 CSV 주소 = KIM_URL)을 GitHub 작업이 30분마다 data/kim.json으로 옮겨요.
+ * 사이트는 kim.json만 읽어요. 시트를 고치면 최대 30분 뒤 반영(급하면 Actions → Run workflow).
  * 칸: 시작일 | 종료일 | 말 | 그림
  *   - 날짜는 2026-12-25 (그해만) 또는 12-25 (해마다). 종료일을 비우면 그날 하루.
  *   - 그림은 비우면 기본 그림. 이 저장소 public/news/kim/ 에 넣은 파일 이름(예: christmas.webp)이나 전체 주소. */
@@ -782,19 +784,20 @@ async function kimTalk(){
   const today = kstToday(), CK = "kim:" + today;
   /* 오늘 이미 읽었으면 바로 */
   try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c) kimShow(c); } catch(e){}
-  if (!KIM_URL){ kimShow({...KIM_DEFAULT}); return; }
-  const timer = setTimeout(()=>kimShow({...KIM_DEFAULT}), 2000);   // 시트가 늦으면 기본 문구
+  const timer = setTimeout(()=>kimShow({...KIM_DEFAULT}), 2000);   // 늦으면 기본 문구
   let k = {...KIM_DEFAULT};
   try{
-    /* 주소 끝에 매번 다른 꼬리표: 구글이 잠시 보관해 둔 옛 CSV 대신 최신본을 받으려고 */
-    const rows = NewsData.parseCSV(await (await fetch(KIM_URL + "&_=" + Date.now(), {cache:"no-store"})).text());
-    const r = kimMatch(rows, today);
-    if (r){ k.say = r.말; const g = String(r.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
+    /* 시트 "김정호" 탭은 GitHub가 30분마다 kim.json으로 옮겨 둠 → 구글을 거치지 않아 빠름 */
+    const r = await fetch("/news/data/kim.json");
+    if (r.ok){
+      const m = kimMatch(await r.json(), today);
+      if (m){ k.say = m.말; const g = String(m.그림||"").trim(); if (g) k.img = /^https?:|^\//.test(g) ? g : "/news/kim/"+g; }
+    }
   }catch(e){ console.warn(e); }
   clearTimeout(timer);
   try { localStorage.setItem(CK, JSON.stringify(k)); } catch(e){}
   const b = $("#kimSay");
-  if (b.dataset.done && b.textContent !== k.say){        // 기억해 둔 문구와 달라졌으면(시트를 고친 경우) 살짝 바꿈
+  if (b.dataset.done && b.textContent !== k.say){        // 기억해 둔 문구와 달라졌으면 살짝 바꿈
     b.classList.add("fade");
     setTimeout(()=>{ b.textContent = k.say; if ($("#kimImg").getAttribute("src") !== k.img) $("#kimImg").src = k.img; b.classList.remove("fade"); }, 300);
   } else kimShow(k);
@@ -1273,7 +1276,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.2(20261105)";
+const NEWS_VERSION = "v1.3(20261105)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");
