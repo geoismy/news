@@ -23,7 +23,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
 <script src="/news/lib/newsdata.js"></script>
-<script src="/news/lib/force-graph-1.43.5.min.js"></script>
 <script src="/news/geo.js"></script>
 <style>
 :root{
@@ -130,9 +129,10 @@ nav.tabs .kakao .short{display:none}
   nav.tabs button{padding:13px 8px}
   nav.tabs button{padding:13px 10px;font-size:15px}
   .datebar h2{font-size:17px}
-  .card{padding:16px 15px 12px}
+  .card{padding:16px 0 14px}
 }
-main{padding:22px 0 60px}
+main{padding:26px 0 60px}
+#v-today .datebar{margin-bottom:4px}
 .view{display:none}.view.on{display:block}
 
 /* date bar */
@@ -145,7 +145,8 @@ main{padding:22px 0 60px}
 .btn:hover:not(:disabled){border-color:var(--accent)}
 
 /* cards */
-.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 14px;margin-bottom:12px}
+.card{padding:20px 0 18px;border-bottom:1px solid var(--line)}
+.card:last-child{border-bottom:0}
 .card .cat{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:4px}
 .card h3{font-size:17px;margin:0 0 6px;line-height:1.45}
 .card h3 a{text-decoration:none}
@@ -155,7 +156,7 @@ main{padding:22px 0 60px}
 .tag{appearance:none;border:0;font:inherit;font-size:13px;padding:3px 10px;border-radius:999px;cursor:pointer}
 .tag.r{background:var(--region-soft);color:var(--region)}
 .tag.t{background:var(--topic-soft);color:var(--topic)}
-.meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);gap:8px}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--muted);gap:8px}
 .actions{display:flex;gap:6px;align-items:center}
 .copy{appearance:none;border:1px solid var(--line);background:none;color:var(--muted);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer}
 .copy.done{color:var(--accent);border-color:var(--accent)}
@@ -323,7 +324,24 @@ body.wide main.wrap, body.wide nav.tabs .wrap, body.wide .hero-text .wrap{max-wi
 
 /* 제목·메뉴·본문 왼쪽 줄 맞춤 */
 nav.tabs .wrap > button:first-child{padding-left:0 !important}
-#v-archive{max-width:760px}
+nav.tabs button .sub{font-size:12px;color:var(--muted);opacity:.8;font-weight:400;margin-left:5px}
+@media (max-width:420px){ nav.tabs button .sub{font-size:11px;margin-left:3px} }
+/* 아카이브: 맨 위 그래프 뷰 / 지도 뷰 */
+.arc-vis{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.arc-vis .vis-bar{display:flex;align-items:center;gap:8px}
+.arc-vis .vis-seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper);align-self:flex-start}
+.arc-vis .vis-seg button{appearance:none;border:0;background:none;font:inherit;font-size:15px;color:var(--muted);padding:7px 20px;cursor:pointer}
+.arc-vis .vis-seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.arc-vis .vcard{display:none}.arc-vis .vcard.on{display:block}
+.arc-vis .vhead b{display:none}
+.arc-vis .vhead .filters,.arc-vis .vhead .seg{margin-left:auto}
+.arc-vis .vhead .seg + .filters{margin-left:0}
+#cardGraph .graphbox{height:min(62vh,540px);min-height:300px}
+#cardMap .krrow .inset svg{width:auto;max-width:100%;height:min(62vh,520px);display:block;margin:0 auto}
+@media (max-width:1023px){
+  #cardGraph .graphbox{height:52vh}
+  #cardMap .krrow .inset svg{height:auto;width:100%;max-height:56vh}
+}
 .datebar h2{flex:1;min-width:0;word-break:keep-all}
 .bubble{word-break:keep-all}
 
@@ -394,34 +412,27 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
 
 <nav class="tabs"><div class="wrap">
   <button data-view="today" class="on">오늘의 소식</button>
-  <button data-view="archive">아카이브</button>
+  <button data-view="archive">아카이브<small class="sub">그래프뷰·지도뷰</small></button>
   <a class="kakao" id="kakao" href="#" target="_blank" rel="noopener">💬 <span class="long">매일 아침 카톡방에서 만나요</span><span class="short">카톡방</span></a>
 </div></nav>
 
 <main class="wrap">
   <div id="notice"></div>
 
-  <section class="view on home" id="v-today">
-    <div class="home-list">
-      <div id="dayView">
-        <div class="datebar">
-          <h2 id="todayTitle">불러오는 중…</h2>
-          <div class="nav">
-            <button class="btn" id="prevDay">◀ 이전</button>
-            <button class="btn" id="nextDay">다음 ▶</button>
-          </div>
-        </div>
-        <div id="todayList"></div>
-      </div>
-      <div id="tagView" hidden>
-        <button class="back" id="backToDay">← 오늘의 소식으로</button>
-        <div class="panel" id="tagPanel"></div>
+  <section class="view on" id="v-today">
+    <div class="datebar">
+      <h2 id="todayTitle">불러오는 중…</h2>
+      <div class="nav">
+        <button class="btn" id="prevDay">◀ 이전</button>
+        <button class="btn" id="nextDay">다음 ▶</button>
       </div>
     </div>
+    <div id="todayList"></div>
+  </section>
 
-    <aside class="home-vis">
-      <div class="vis-bar"><div class="vis-seg" id="visSeg"><button class="on" data-c="graph">그래프 뷰</button><button data-c="map">뉴스 지도</button></div>
-        <button class="vis-toggle" id="visToggle" type="button" aria-expanded="true">접기 ▴</button></div>
+  <section class="view" id="v-archive">
+    <div class="arc-vis">
+      <div class="vis-bar"><div class="vis-seg" id="visSeg"><button class="on" data-c="graph">그래프 뷰</button><button data-c="map">지도 뷰</button></div></div>
       <div class="vcard on" id="cardGraph">
         <div class="vhead"><b>그래프 뷰</b>
           <div class="filters" id="graphFilters">
@@ -430,10 +441,10 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
       <button class="chip sm" data-g="t">주제만</button>
     </div>
         </div>
-        <div class="graphbox"><div id="graph"></div><div class="graphhint">점을 누르면 왼쪽에 기사가 모여요</div></div>
+        <div class="graphbox"><div id="graph"></div><div class="graphhint">점을 누르면 아래에 기사가 모여요</div></div>
       </div>
       <div class="vcard" id="cardMap">
-        <div class="vhead"><b>뉴스 지도</b>
+        <div class="vhead"><b>지도 뷰</b>
           <span class="seg" id="mapSeg"><button class="on" data-m="world">세계</button><button data-m="korea">한반도</button></span>
           <div class="filters" id="mapFilters">
             <button class="chip sm on" data-d="all">전체</button>
@@ -449,13 +460,17 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
         <div class="maptip" id="mapTip"></div>
       </div>
       </div>
-    </aside>
-  </section>
+    </div>
 
-  <section class="view" id="v-archive">
-    <input class="search" id="q" type="search" placeholder="검색: 화산, 아이슬란드, 인구…">
-    <div class="filters" id="catFilters"></div>
-    <div id="archiveList"></div>
+    <div id="tagView" hidden>
+      <button class="back" id="backToDay">← 지난 소식 목록으로</button>
+      <div class="panel" id="tagPanel"></div>
+    </div>
+    <div id="archiveBox">
+      <input class="search" id="q" type="search" placeholder="검색: 화산, 아이슬란드, 인구…">
+      <div class="filters" id="catFilters"></div>
+      <div id="archiveList"></div>
+    </div>
   </section>
 </main>
 
@@ -533,13 +548,15 @@ const haveDate = d => LOADED.all || d >= LOADED.from || LOADED.months.has(d.slic
 /* ---------- 데이터 ---------- */
 async function load(){
   const ND = NewsData;
-  let placeRows = [];
-  try{ placeRows = await fetchJSON("/news/places.json"); }catch(e){ console.warn(e); }
-  PIDX = ND.placeIndex(placeRows, GEO);
+  /* 지명 목록·요약·최근 소식을 한꺼번에 받기 */
+  const pPlaces = fetchJSON("/news/places.json").catch(e=>{ console.warn(e); return []; });
+  const pSum = Promise.all([fetchJSON("/news/data/summary.json"), fetchJSON("/news/data/recent.json")]);
+  pSum.catch(()=>{});
+  PIDX = ND.placeIndex(await pPlaces, GEO);
   let failed = false;
   /* 1) GitHub가 만들어 둔 요약 파일 (빠름) */
   try{
-    const [sum, recent] = await Promise.all([fetchJSON("/news/data/summary.json"), fetchJSON("/news/data/recent.json")]);
+    const [sum, recent] = await pSum;
     SUMMARY = sum; DATA = recent; LOADED.from = sum.recentFrom || "";
   }catch(e){
     /* 2) 없으면 예전처럼 시트에서 직접 */
@@ -562,10 +579,10 @@ async function load(){
   }
   TAGTYPE = new Map(SUMMARY.tags.map(t=>[t[0], t[1]]));
   DATES = SUMMARY.dates.map(d=>d[0]);
-  renderToday(); renderCats(); renderArchive(); renderHero(); buildGraph();
+  renderToday(); renderCats(); renderArchive(); renderHero();
   const h = decodeURIComponent(location.hash.slice(1));
   document.body.classList.add("wide");
-  initMap();
+  if (currentView()==="archive") initArchive();
   if (h.startsWith("tag=")) openTag(h.slice(4), false);
   else if (h.startsWith("place=")) openTag(h.slice(6), false);
 }
@@ -655,12 +672,12 @@ function graphData(filter){
   });
   const links = SUMMARY.tagPairs.filter(([a,b])=>keep.has(a)&&keep.has(b))
     .map(([a,b,w])=>({source:keep.get(a).id, target:keep.get(b).id, w}));
-  return {nodes:[...keep.values()], links};
+  return {nodes:[...keep.values()].sort((a,b)=>b.count-a.count), links};
 }
 const nodeR = n => Math.sqrt(2+n.count*2)*3;
 
 function makeGraph(el, hero){
-  const st = {hover:null, hiN:new Set(), hiL:new Set()};
+  const st = {hover:null, hiN:new Set(), hiL:new Set(), boxes:[]};
   const g = ForceGraph()(el)
     .backgroundColor("rgba(0,0,0,0)")
     .nodeId("id")
@@ -680,16 +697,27 @@ function makeGraph(el, hero){
       if (n===st.hover){ ctx.lineWidth=2/scale; ctx.strokeStyle="#fff"; ctx.stroke(); }
       const showLabel = hero ? (n.count>=2 || st.hiN.has(n)) : (scale>1.1 || n.count>=2 || st.hiN.has(n));
       if (showLabel){
-        const fs = Math.max((hero?13:11)/scale, 3);
+        const fs = Math.max((hero?13:12)/scale, 3);
         ctx.font = `${n===st.hover?700:500} ${fs}px "Noto Sans KR",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+        /* 다른 이름과 겹치면 건너뜀 (강조된 점은 늘 보임) */
+        const w = ctx.measureText(n.name).width, bx = [n.x-w/2-2/scale, n.y+r, w+4/scale, fs+4/scale];
+        const hit = st.boxes.some(b=>bx[0]<b[0]+b[2] && b[0]<bx[0]+bx[2] && bx[1]<b[1]+b[3] && b[1]<bx[1]+bx[3]);
+        if (hit && !(st.hiN.has(n) || n===st.hover)) return;
+        st.boxes.push(bx);
         ctx.fillStyle = dim ? "rgba(220,218,240,.18)" : "#e6e5f3";
         ctx.fillText(n.name, n.x, n.y+r+2/scale);
       }
     })
     .nodePointerAreaPaint((n,color,ctx)=>{ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(n.x,n.y,nodeR(n)+4,0,2*Math.PI); ctx.fill(); })
     .onNodeClick(n=>openTag(n.name))
+    .onRenderFramePre(()=>{ st.boxes.length = 0; })
     .cooldownTicks(150);
   g.d3Force("charge").strength(hero?-120:-90);
+  /* 따로 떨어진 점들이 멀리 흩어지지 않게 가운데로 살짝 당김 */
+  let gNodes = [];
+  const pull = alpha => { for (const n of gNodes){ n.vx -= n.x*0.06*alpha; n.vy -= n.y*0.06*alpha; } };
+  pull.initialize = ns => { gNodes = ns; };
+  g.d3Force("pull", pull);
   g._setHi = n => {
     st.hover=n||null; st.hiN.clear(); st.hiL.clear();
     if (n){ st.hiN.add(n); g.graphData().links.forEach(l=>{ if(l.source===n||l.target===n){ st.hiL.add(l); st.hiN.add(l.source); st.hiN.add(l.target);} }); }
@@ -784,13 +812,30 @@ $("#homeLink").onclick = e=>{
   scrollTo({top:0, behavior:"smooth"});
 };
 
+/* ---------- 아카이브를 처음 열 때만 그래프·지도 준비 ---------- */
+let ARC = null;
+function loadScript(src){ return new Promise((ok,no)=>{ const t=document.createElement("script"); t.src=src; t.onload=ok; t.onerror=no; document.head.appendChild(t); }); }
+function initArchive(){
+  if (ARC) return ARC;
+  ARC = Promise.all([
+    (window.ForceGraph ? Promise.resolve() : loadScript("/news/lib/force-graph-1.43.5.min.js")).then(buildGraph).catch(e=>{ console.warn(e); buildGraph(); }),
+    initMap()
+  ]);
+  return ARC;
+}
+function fitGraph(){
+  if (!graph) return; const el=$("#graph"); if (!el.clientWidth) return;
+  graph.width(el.clientWidth).height(el.clientHeight); graph.zoomToFit(400, 30, n=>true);
+}
+
 /* ---------- 그래프 뷰 탭 ---------- */
 function buildGraph(){
   const el = $("#graph");
   if (!window.ForceGraph){ el.innerHTML='<div class="empty" style="color:#9aa">그래프를 불러오지 못했어요</div>'; return; }
-  if (!graph) graph = makeGraph(el, false);
+  if (!graph){ graph = makeGraph(el, false); graph.onEngineStop(()=>{ if (graph._fit){ graph._fit=false; fitGraph(); } }); }
+  if (el.clientWidth) graph.width(el.clientWidth).height(el.clientHeight);
+  graph._fit = true;
   graph.graphData(graphData(gFilter));
-  if (el.clientWidth) setTimeout(()=>graph.zoomToFit(400,40),700);
 }
 $("#graphFilters").addEventListener("click", e=>{
   const b=e.target.closest(".chip"); if(!b) return;
@@ -812,8 +857,9 @@ function tagPanelHTML(tag, list, rel, closeId, extra=""){
 }
 /* 뉴스 지도에서 지역을 누르면 지도 아래에, 그 밖에는 그래프 뷰에 모아 보여 줌 */
 /* 태그·지역을 고르면: 왼쪽에 그 기사들, 오른쪽 그래프와 지도에서 함께 강조 */
-function openTag(tag, scroll=true){
-  showView("today");
+async function openTag(tag, scroll=true){
+  showView("archive");
+  OPEN_TAG_PENDING = tag;
   const {list, rel} = tagList(tag);
   const isR = tagType(tag)==="r" || !!coord(tag);
   let osm = "";
@@ -823,9 +869,11 @@ function openTag(tag, scroll=true){
   }
   $("#tagPanel").innerHTML = tagPanelHTML(tag, list, rel, "closeTag", osm);
   $("#closeTag").onclick = backToDay;
-  $("#dayView").hidden = true; $("#tagView").hidden = false;
+  $("#archiveBox").hidden = true; $("#tagView").hidden = false;
   history.replaceState(null,"","#tag="+encodeURIComponent(tag));
-  /* 그래프 */
+  /* 그래프 (처음이면 그래프·지도가 준비될 때까지 기다림) */
+  await initArchive();
+  if (OPEN_TAG_PENDING !== tag && OPEN_TAG_PENDING) return;
   if (graph){
     setTimeout(()=>{
       const ns = graph.graphData().nodes;
@@ -840,14 +888,14 @@ function openTag(tag, scroll=true){
   OPEN_TAG = tag;
   if (!LOADED.all) loadAll().then(()=>{ if (OPEN_TAG===tag && !$("#tagView").hidden){ const r = tagList(tag); $("#tagPanel").innerHTML = tagPanelHTML(tag, r.list, r.rel, "closeTag", osm); $("#closeTag").onclick = backToDay; } });
   markMapSel();
-  if (typeof setVisMini==="function") setVisMini(false);
   if (scroll) setTimeout(scrollToHome, 100);
 }
 const openPlace = openTag;
-let OPEN_TAG = null;
+let OPEN_TAG = null, OPEN_TAG_PENDING = null;
 function backToDay(){
   OPEN_TAG = null;
-  $("#tagView").hidden = true; $("#dayView").hidden = false; $("#tagPanel").innerHTML = "";
+  OPEN_TAG_PENDING = null;
+  $("#tagView").hidden = true; $("#archiveBox").hidden = false; $("#tagPanel").innerHTML = "";
   MAP.sel = null; markMapSel(); graph && graph._setHi(null);
   history.replaceState(null,"",location.pathname);
 }
@@ -856,49 +904,18 @@ function markMapSel(){
 }
 /* 고른 뒤: 목록 첫머리와 그림이 같이 보이게 */
 function scrollToHome(){
-  const sec = $("#v-today"), navH = $("nav.tabs").offsetHeight;
+  const sec = $("#v-archive"), navH = $("nav.tabs").offsetHeight;
   const top = sec.getBoundingClientRect().top + scrollY - navH - 6;
   if (scrollY > top + 4 || sec.getBoundingClientRect().top > innerHeight*0.5) scrollTo({top, behavior:"smooth"});
 }
 $("#backToDay").onclick = backToDay;
-/* 좁은 화면: 그래프 / 지도 바꿔 보기 */
-/* 좁은 화면: 아래로 읽으면 그래프·지도를 접고, 위로 올리면 펼침 */
-const VIS = {mini:false, lastY:0, lockUntil:0};
-function measureVis(){
-  const c = document.querySelector(".home-vis .vcard.on"); if (!c || VIS.mini) return;
-  c.style.setProperty("--vh", c.scrollHeight + "px");
-}
-function setVisMini(m){
-  if (VIS.mini === m) return;
-  if (m) measureVis();
-  VIS.mini = m; VIS.lockUntil = performance.now() + 600; // 접히며 화면이 밀리는 동안은 무시
-  $(".home-vis").classList.toggle("mini", m);
-  $("#visToggle").textContent = m ? "펼치기 ▾" : "접기 ▴";
-  $("#visToggle").setAttribute("aria-expanded", String(!m));
-  if (!m) setTimeout(()=>{ placeLabels(); if (graph){ const el=$("#graph"); graph.width(el.clientWidth).height(el.clientHeight); } }, 320);
-}
-addEventListener("scroll", ()=>{
-  const y = scrollY;
-  if (innerWidth >= 1024 || currentView()!=="today"){ VIS.lastY = y; return; }
-  if (performance.now() < VIS.lockUntil){ VIS.lastY = y; return; }
-  const dy = y - VIS.lastY;
-  const listTop = $(".home-list").getBoundingClientRect().top + y - $("nav.tabs").offsetHeight;
-  if (y < listTop - 40) setVisMini(false);              // 목록 위쪽이면 늘 펼침
-  else if (dy > 12) setVisMini(true);                   // 아래로 읽는 중
-  else if (dy < -24) setVisMini(false);                 // 위로 올림
-  if (Math.abs(dy) > 12) VIS.lastY = y;
-}, {passive:true});
-$("#visToggle").onclick = ()=>setVisMini(!VIS.mini);
-addEventListener("resize", measureVis);
-
 $("#visSeg").addEventListener("click", e=>{
-  setVisMini(false);
   const b = e.target.closest("button"); if (!b) return;
   document.querySelectorAll("#visSeg button").forEach(x=>x.classList.toggle("on", x===b));
   $("#cardGraph").classList.toggle("on", b.dataset.c==="graph");
   $("#cardMap").classList.toggle("on", b.dataset.c==="map");
   if (b.dataset.c==="map") requestAnimationFrame(placeLabels);
-  else if (graph){ const el=$("#graph"); graph.width(el.clientWidth).height(el.clientHeight); }
+  else requestAnimationFrame(fitGraph);
 });
 
 /* ---------- 뉴스 지도 (도트맵 + 버블) ---------- */
@@ -1223,16 +1240,26 @@ $("#mapFilters").addEventListener("click", e=>{
 /* ---------- 공통 이벤트 ---------- */
 function currentView(){ const s=document.querySelector(".view.on"); return s ? s.id.slice(2) : "today"; }
 function showView(v){
-  document.body.classList.toggle("wide", v==="today");
+  const was = currentView();
+  document.body.classList.add("wide");
   document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
-  if (v==="today" && graph){ const el=$("#graph"); if (el.clientWidth) graph.width(el.clientWidth).height(el.clientHeight); }
+  if (v==="archive"){ initArchive(); if (was!=="archive") requestAnimationFrame(()=>{ fitGraph(); placeLabels && MAP.dm && placeLabels(); }); }
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>showView(b.dataset.view));
 document.addEventListener("click", async e=>{
   const t=e.target.closest(".tag"); if(t){ openTag(t.dataset.tag); return; }
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
+/* 바닥글: 버전 · 메일 복사 */
+const NEWS_VERSION = "v1.1(20261105)";
+$("#newsVer").textContent = NEWS_VERSION;
+$("#copyMail").onclick = async ()=>{
+  const mail = "geoismyfault@gmail.com", b = $("#copyMail");
+  try{ await navigator.clipboard.writeText(mail); }
+  catch(e){ const t=document.createElement("textarea"); t.value=mail; document.body.appendChild(t); t.select(); try{document.execCommand("copy");}catch(_){} t.remove(); }
+  b.textContent = "복사했어요 ✓"; setTimeout(()=>b.textContent="복사하기", 1600);
+};
 
 kimTalk();   // 기사 데이터와 따로, 바로 시작
 load();
