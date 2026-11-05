@@ -20,17 +20,20 @@
 <meta property="og:image:alt" content="오늘도 지리는 소식 · geois.my/news">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#edc742">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preload" href="/news/data/recent.json" as="fetch" crossorigin>
 <link rel="preload" href="/news/data/summary.json" as="fetch" crossorigin>
 <link rel="preload" href="/news/kimjeongho.webp" as="image">
 <link rel="preload" href="/news/data/kim.json" as="fetch" crossorigin>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet"></noscript>
+<!-- 글꼴: 모두 우리 사이트에서 (제목·편지 명조는 쓰는 글자만 잘라 둔 Noto Serif KR, 본문은 Pretendard) -->
+<link rel="preload" href="/news/fonts/geo-serif-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/news/fonts/pretendard/pretendard.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="/news/fonts/pretendard/pretendard.css"></noscript>
 <script src="/news/lib/newsdata.js"></script>
 <script src="/news/geo.js"></script>
 <style>
+/* 제목·편지에 쓰는 글자만 담은 명조 (제목·편지 글자를 바꾸면 tools/make-serif-font.py로 다시 만들기) */
+@font-face{font-family:"Geo Serif";font-style:normal;font-weight:700;font-display:swap;src:url(/news/fonts/geo-serif-700.woff2) format("woff2")}
+@font-face{font-family:"Geo Serif";font-style:normal;font-weight:900;font-display:swap;src:url(/news/fonts/geo-serif-900.woff2) format("woff2")}
 :root{
   --bg:#f4f4f6; --paper:#ffffff; --ink:#16161d; --muted:#6a6a78; --line:#e2e2ea;
   --accent:#5b4bd6; --accent-ink:#ffffff; --accent-soft:#ecebfb; --region:#8a6400; --region-soft:#fff4d6;
@@ -51,7 +54,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--ink);font-family:"Pretendard Variable",Pretendard,system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased}
 a{color:inherit}
 .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
 
@@ -62,7 +65,7 @@ a{color:inherit}
 .kim-hero.dark{background:var(--graph-bg);color:#f1f0ff}
 .kim-in{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-height:210px}
 .kim-copy{padding:26px 0 24px;min-width:0}
-.kim-hero h1{font-family:"Noto Serif KR",serif;font-weight:900;font-size:clamp(28px,5.2vw,44px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
+.kim-hero h1{font-family:"Geo Serif","Noto Serif KR",serif;font-weight:900;font-size:clamp(28px,5.2vw,44px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
 .kim-hero h1 a{color:inherit;text-decoration:none}
 .kim-hero.yellow .stats{color:#4d3d00}
 .kim-hero.yellow .stats b{color:#000}
@@ -89,12 +92,12 @@ a{color:inherit}
 /* 편지 */
 dialog.letter{border:0;padding:0;background:transparent;max-width:min(92vw,520px)}
 dialog.letter::backdrop{background:rgba(7,8,15,.6)}
-.letter-paper{background:#fbf6e8;color:#2b2416;border-radius:6px;padding:28px 28px 20px;font-family:"Noto Serif KR",serif;font-size:15.5px;line-height:1.9;
+.letter-paper{background:#fbf6e8;color:#2b2416;border-radius:6px;padding:28px 28px 20px;font-family:"Geo Serif","Noto Serif KR",serif;font-size:15.5px;line-height:1.9;
   box-shadow:0 20px 50px rgba(0,0,0,.35);border-top:6px solid #c0392b;position:relative}
 .letter-paper p{margin:0 0 14px}
 .letter-face{width:72px;height:72px;border-radius:50%;display:block;margin:0 0 6px auto;background:#edc742}
 .letter-paper .sign{text-align:right}
-.letter-paper .ps{font-family:"Noto Sans KR",sans-serif;font-size:13.5px;line-height:1.75;color:#5a5140;border-top:1px dashed #d9cfb4;padding-top:12px;margin-top:4px}
+.letter-paper .ps{font-family:"Pretendard Variable",Pretendard,sans-serif;font-size:13.5px;line-height:1.75;color:#5a5140;border-top:1px dashed #d9cfb4;padding-top:12px;margin-top:4px}
 .letter-paper .ps p{margin:0 0 8px}
 .letter-paper .ps .copy{font-size:12px;padding:3px 10px;margin-left:4px;background:#fff}
 .letter-paper .ps .ver{color:#9a8f76;font-size:12px}
@@ -107,7 +110,7 @@ dialog.letter::backdrop{background:rgba(7,8,15,.6)}
 .hero-shade{position:absolute;left:0;right:0;top:0;height:clamp(230px,40vh,360px);pointer-events:none;
   background:linear-gradient(180deg,rgba(7,8,15,.5) 0%,rgba(7,8,15,0) 22%,rgba(7,8,15,0) 70%,rgba(7,8,15,1) 100%)}
 .hero-text{position:relative;padding:4px 0 22px;pointer-events:none}
-.hero h1{font-family:"Noto Serif KR",serif;font-weight:900;font-size:clamp(26px,5.6vw,40px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
+.hero h1{font-family:"Geo Serif","Noto Serif KR",serif;font-weight:900;font-size:clamp(26px,5.6vw,40px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
 .hero h1 a{color:inherit;text-decoration:none;pointer-events:auto}
 .hero h1 a:hover{color:#fff;text-shadow:0 0 18px rgba(157,146,240,.6)}
 .stats{margin:0;font-size:15px;color:#c9c8dc}
@@ -720,7 +723,7 @@ function makeGraph(el, hero){
       const showLabel = hero ? (n.count>=2 || st.hiN.has(n)) : (scale>1.1 || n.count>=2 || st.hiN.has(n));
       if (showLabel){
         const fs = Math.max((hero?13:12)/scale, 3);
-        ctx.font = `${n===st.hover?700:500} ${fs}px "Noto Sans KR",sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
+        ctx.font = `${n===st.hover?700:500} ${fs}px "Pretendard Variable",Pretendard,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="top";
         /* 다른 이름과 겹치면 건너뜀 (강조된 점은 늘 보임) */
         const w = ctx.measureText(n.name).width, bx = [n.x-w/2-2/scale, n.y+r, w+4/scale, fs+4/scale];
         const hit = st.boxes.some(b=>bx[0]<b[0]+b[2] && b[0]<bx[0]+bx[2] && bx[1]<b[1]+b[3] && b[1]<bx[1]+bx[3]);
@@ -1276,7 +1279,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.3(20261105)";
+const NEWS_VERSION = "v1.4(20261105)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");
