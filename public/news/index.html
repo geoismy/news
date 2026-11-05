@@ -21,7 +21,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#edc742">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+<link rel="preload" href="/news/data/recent.json" as="fetch" crossorigin>
+<link rel="preload" href="/news/data/summary.json" as="fetch" crossorigin>
+<link rel="preload" href="/news/kimjeongho.webp" as="image">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet"></noscript>
 <script src="/news/lib/newsdata.js"></script>
 <script src="/news/geo.js"></script>
 <style>
@@ -524,7 +529,7 @@ const inKorea = p => NewsData.inKorea(p);
 const KOREA_BOX = NewsData.KOREA_BOX;
 const tagType = t => TAGTYPE.get(t) || "t";
 
-async function fetchJSON(url){ const r = await fetch(url, {cache:"no-cache"}); if (!r.ok) throw new Error(url+" "+r.status); return r.json(); }
+async function fetchJSON(url){ const r = await fetch(url); if (!r.ok) throw new Error(url+" "+r.status); return r.json(); }
 function mergeArticles(list){
   const ids = new Set(DATA.map(d=>d.id));
   for (const a of list) if (!ids.has(a.id)) DATA.push(a);
@@ -546,28 +551,46 @@ async function loadAll(){
 const haveDate = d => LOADED.all || d >= LOADED.from || LOADED.months.has(d.slice(0,7));
 
 /* ---------- 데이터 ---------- */
+/* 지난번에 받은 소식을 기억해 두었다가, 다시 열면 그걸 먼저 바로 보여 주고 뒤에서 새 소식으로 바꿈 */
+const SNAP_KEY = "news:snap:v1";
+function useData(sum, recent){
+  SUMMARY = sum; DATA = recent.slice();
+  LOADED.from = sum.recentFrom || ""; LOADED.months.clear(); LOADED.all = false;
+  TAGTYPE = new Map(SUMMARY.tags.map(t=>[t[0], t[1]]));
+  DATES = SUMMARY.dates.map(d=>d[0]);
+  if (dayIdx >= DATES.length) dayIdx = 0;
+}
+function paintAll(){ renderToday(); renderCats(); renderArchive(); renderHero(); }
 async function load(){
   const ND = NewsData;
-  /* 지명 목록·요약·최근 소식을 한꺼번에 받기 */
+  document.body.classList.add("wide");
+  /* 0) 기억해 둔 소식이 있으면 곧바로 */
+  let snap = null;
+  try{ snap = localStorage.getItem(SNAP_KEY); }catch(e){}
+  if (snap){ try{ const o = JSON.parse(snap); useData(o.sum, o.recent); paintAll(); }catch(e){ snap = null; } }
+  /* 1) 요약·최근 소식·지명 목록을 한꺼번에 받기 (head에서 미리 받기 시작함) */
   const pPlaces = fetchJSON("/news/places.json").catch(e=>{ console.warn(e); return []; });
-  const pSum = Promise.all([fetchJSON("/news/data/summary.json"), fetchJSON("/news/data/recent.json")]);
-  pSum.catch(()=>{});
-  PIDX = ND.placeIndex(await pPlaces, GEO);
   let failed = false;
-  /* 1) GitHub가 만들어 둔 요약 파일 (빠름) */
   try{
-    const [sum, recent] = await pSum;
-    SUMMARY = sum; DATA = recent; LOADED.from = sum.recentFrom || "";
+    const [sum, recent] = await Promise.all([fetchJSON("/news/data/summary.json"), fetchJSON("/news/data/recent.json")]);
+    const fresh = JSON.stringify({sum, recent});
+    if (fresh !== snap){
+      useData(sum, recent); paintAll();
+      try{ localStorage.setItem(SNAP_KEY, fresh); }catch(e){}
+    }
   }catch(e){
-    /* 2) 없으면 예전처럼 시트에서 직접 */
-    console.warn("요약 파일 대신 시트에서 직접 읽어요", e);
-    try{
-      const res = await fetch(CSV_URL, {cache:"no-store"});
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      DATA = ND.parseArticles(ND.parseCSV(await res.text()), PIDX);
-      if (!DATA.length) throw new Error("no rows");
-      SUMMARY = ND.summarize(DATA, PIDX); LOADED.all = true;
-    }catch(e2){ console.warn(e2); failed = true; }
+    if (!snap){
+      /* 2) 없으면 예전처럼 시트에서 직접 */
+      console.warn("요약 파일 대신 시트에서 직접 읽어요", e);
+      try{
+        PIDX = ND.placeIndex(await pPlaces, GEO);
+        const res = await fetch(CSV_URL, {cache:"no-store"});
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const all = ND.parseArticles(ND.parseCSV(await res.text()), PIDX);
+        if (!all.length) throw new Error("no rows");
+        useData(ND.summarize(all, PIDX), all); LOADED.all = true; paintAll();
+      }catch(e2){ console.warn(e2); failed = true; }
+    }
   }
   if (failed){
     $("#notice").innerHTML = `<div class="notice">지금 소식을 불러오지 못했어요. 잠시 후 새로고침해 주세요.</div>`;
@@ -577,11 +600,9 @@ async function load(){
     $("#archiveList").innerHTML = `<div class="empty">소식을 불러오지 못했어요</div>`;
     return;
   }
-  TAGTYPE = new Map(SUMMARY.tags.map(t=>[t[0], t[1]]));
-  DATES = SUMMARY.dates.map(d=>d[0]);
-  renderToday(); renderCats(); renderArchive(); renderHero();
+  /* 지명 목록은 지도·태그 모아보기에만 쓰니 오늘 소식을 그린 다음에 */
+  if (!PIDX) PIDX = ND.placeIndex(await pPlaces, GEO);
   const h = decodeURIComponent(location.hash.slice(1));
-  document.body.classList.add("wide");
   if (currentView()==="archive") initArchive();
   if (h.startsWith("tag=")) openTag(h.slice(4), false);
   else if (h.startsWith("place=")) openTag(h.slice(6), false);
@@ -1252,7 +1273,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.1(20261105)";
+const NEWS_VERSION = "v1.2(20261105)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");
