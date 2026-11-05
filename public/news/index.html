@@ -26,14 +26,13 @@
 <link rel="preload" href="/news/data/kim.json" as="fetch" crossorigin>
 <!-- 글꼴: 모두 우리 사이트에서 (제목·편지 명조는 쓰는 글자만 잘라 둔 Noto Serif KR, 본문은 Pretendard) -->
 <link rel="preload" href="/news/fonts/geo-serif-900.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/news/fonts/pretendard/pretendard.css" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="/news/fonts/pretendard/pretendard.css"></noscript>
+<link rel="stylesheet" href="/news/fonts/pretendard/pretendard.css">
 <script src="/news/lib/newsdata.js"></script>
 <script src="/news/geo.js"></script>
 <style>
 /* 제목·편지에 쓰는 글자만 담은 명조 (제목·편지 글자를 바꾸면 tools/make-serif-font.py로 다시 만들기) */
-@font-face{font-family:"Geo Serif";font-style:normal;font-weight:700;font-display:swap;src:url(/news/fonts/geo-serif-700.woff2) format("woff2")}
-@font-face{font-family:"Geo Serif";font-style:normal;font-weight:900;font-display:swap;src:url(/news/fonts/geo-serif-900.woff2) format("woff2")}
+@font-face{font-family:"Geo Serif";font-style:normal;font-weight:700;font-display:block;src:url(/news/fonts/geo-serif-700.woff2) format("woff2")}
+@font-face{font-family:"Geo Serif";font-style:normal;font-weight:900;font-display:block;src:url(/news/fonts/geo-serif-900.woff2) format("woff2")}
 :root{
   --bg:#f4f4f6; --paper:#ffffff; --ink:#16161d; --muted:#6a6a78; --line:#e2e2ea;
   --accent:#5b4bd6; --accent-ink:#ffffff; --accent-soft:#ecebfb; --region:#8a6400; --region-soft:#fff4d6;
@@ -1279,7 +1278,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.4(20261105)";
+const NEWS_VERSION = "v1.5(20261105)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");

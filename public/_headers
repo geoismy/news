@@ -1,0 +1,4 @@
+# 글꼴은 이름이 바뀌지 않는 한 내용도 그대로 → 브라우저가 1년 동안 묻지 않고 바로 씀
+# (글꼴 파일을 고칠 때는 파일 이름을 바꾸기)
+/news/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
