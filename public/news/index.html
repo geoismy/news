@@ -71,6 +71,12 @@ a{color:inherit}
 .letter-link{appearance:none;border:0;background:none;font:inherit;font-size:14px;font-weight:700;padding:6px 0 0;cursor:pointer;color:inherit;opacity:.8;text-decoration:underline;text-underline-offset:4px}
 .letter-link:hover{opacity:1}
 .kim{display:flex;align-items:flex-end;gap:6px;flex:none}
+/* geois.my 첫 화면으로 */
+.kim-in{position:relative}
+.gohome{position:absolute;top:14px;right:16px;z-index:2;display:inline-flex;align-items:center;gap:4px;border:2px solid #111;border-radius:999px;padding:7px 15px;
+  font-size:14px;font-weight:700;color:#111;background:transparent;text-decoration:none;white-space:nowrap;transition:background .2s,color .2s}
+.gohome:hover{background:#111;color:var(--kim)}
+.kim-in .kim{margin-right:120px}
 .kim-pic{appearance:none;border:0;background:none;padding:0;cursor:pointer;display:block;line-height:0}
 .kim-pic img{width:auto;height:200px;margin-top:10px;display:block;transition:transform .25s;filter:drop-shadow(0 6px 10px rgba(80,60,0,.18))}
 .kim-pic:hover img{transform:translateY(-4px) rotate(-1.5deg)}
@@ -87,6 +93,9 @@ a{color:inherit}
   .kim-hero.dark .kim-pic img{width:104px;height:104px;margin-bottom:14px}
   .bubble{flex:1;max-width:none;margin-bottom:34px;font-size:13px}
   .letter-link{font-size:13px}
+  .kim-in .kim{margin-right:0}
+  .gohome{top:12px;padding:5px 12px;font-size:13px}
+  .kim-copy{padding-top:52px}
 }
 /* 편지 */
 dialog.letter{border:0;padding:0;background:transparent;max-width:min(92vw,520px)}
@@ -392,6 +401,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
 
 <header class="hero kim-hero yellow" id="hero">
   <div class="wrap kim-in">
+    <a class="gohome" href="/">← 첫 화면</a>
     <div class="kim-copy">
       <h1><a href="/news/" id="homeLink">오늘도 지리는 소식</a></h1>
       <p class="stats" id="heroStats">불러오는 중…</p>
@@ -1278,7 +1288,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.5(20261105)";
+const NEWS_VERSION = "v1.6(20261111)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");
