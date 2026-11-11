@@ -66,6 +66,9 @@ a{color:inherit}
 .kim-copy{padding:26px 0 24px;min-width:0}
 .kim-hero h1{font-family:"Geo Serif","Noto Serif KR",serif;font-weight:900;font-size:clamp(28px,5.2vw,44px);line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
 .kim-hero h1 a{color:inherit;text-decoration:none}
+.kim-hero h1{margin-bottom:2px}
+.site-url{margin:0 0 10px;font-size:15px;font-weight:800;letter-spacing:.2px;color:#6b5300}
+@media (max-width:640px){ .site-url{font-size:13.5px;margin-bottom:8px} }
 .kim-hero.yellow .stats{color:#4d3d00}
 .kim-hero.yellow .stats b{color:#000}
 .letter-link{appearance:none;border:0;background:none;font:inherit;font-size:14px;font-weight:700;padding:6px 0 0;cursor:pointer;color:inherit;opacity:.8;text-decoration:underline;text-underline-offset:4px}
@@ -404,6 +407,7 @@ footer .ft-ver{font-size:12px;opacity:.7;margin-top:2px}
     <a class="gohome" href="/">← 첫 화면</a>
     <div class="kim-copy">
       <h1><a href="/news/" id="homeLink">오늘도 지리는 소식</a></h1>
+      <p class="site-url">geois.my/news</p>
       <p class="stats" id="heroStats">불러오는 중…</p>
     </div>
     <div class="kim">
@@ -1288,7 +1292,7 @@ document.addEventListener("click", async e=>{
 });
 if (KAKAO_URL) $("#kakao").href = KAKAO_URL;
 /* 바닥글: 버전 · 메일 복사 */
-const NEWS_VERSION = "v1.6(20261111)";
+const NEWS_VERSION = "v1.7(20261111)";
 $("#newsVer").textContent = NEWS_VERSION;
 $("#copyMail").onclick = async ()=>{
   const mail = "geoismyfault@gmail.com", b = $("#copyMail");
